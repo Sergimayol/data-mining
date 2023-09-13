@@ -1,0 +1,15 @@
+# Demo
+
+This is a demo document
+
+## Example of chuck of code
+
+```{R}
+data <- read.csv("http://joeystanley.com/downloads/menu.csv")
+plot(data$Calories, data$Fat)
+```
+
+```{R}
+x <- (data$Calories[1:57])
+hist(x)
+```
