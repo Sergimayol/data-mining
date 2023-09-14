@@ -1,5 +1,7 @@
 {
    "files.associations": {
      "*.Rmd": "rmd"
-  }
+  },
+  "editor.indentSize": "tabSize",
+  "editor.tabSize": 2
 }
