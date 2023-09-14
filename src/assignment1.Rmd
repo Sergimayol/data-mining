@@ -1,0 +1,84 @@
+---
+title: "Assignment 1"
+author: "Sergi Mayol"
+date: "14/09/23"
+output: html_document
+---
+
+Complete the following problem without using the R built-in functions.
+Consider the ChickWeight dataset built into R. To see a description of this dataset, type ?ChickWeight.
+a) Calculate the mean and variance of variables weight and Time.
+b) Calculate the covariance between weight and Time. Interpret the result.
+
+## Loading dataset
+
+```{r}
+dataset <- ChickWeight
+```
+
+
+## a) Calculate the mean and variance of variables weight and Time.
+
+```{r}
+weight <- dataset$weight
+time <- dataset$Time
+```
+
+- Mean:
+
+```{r}
+my_mean <- function(data) {
+  s <- 0
+  cont <- 0
+  for (d in data) {
+    s <- s + d
+    cont <- cont + 1
+  }
+  return(s / cont)
+}
+```
+
+```{r}
+my_mean(weight)
+my_mean(time)
+```
+
+- Variance
+
+```{r}
+variance <- function(data) {
+  mean <- my_mean(data)
+  cont <- 0
+  s <- 0
+  for (d in data) {
+    s <- s + (d - mean)^2
+    cont <- cont + 1
+  }
+  return(s / (cont - 1))
+}
+```
+
+```{r}
+variance(weight)
+variance(time)
+```
+
+## b) Calculate the covariance between weight and Time. Interpret the result.
+
+```{r}
+covariance <- function(data_1, data_2) {
+  mean_1 <- my_mean(data_1)
+  mean_2 <- my_mean(data_2)
+  cont <- 0
+  s <- 0
+  for (d in data_1) {
+    s <- s + (data_1[cont + 1] - mean_1) * (data_2[cont + 1] - mean_2)
+    cont <- cont + 1
+  }
+  return(s / (cont - 1))
+}
+```
+
+```{r}
+covariance(weight, time)
+```
