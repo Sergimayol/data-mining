@@ -1,84 +1,166 @@
 ---
 title: "Assignment 1"
-author: "Sergi Mayol"
-date: "14/09/23"
+author: "@Sergimayol"
+date: "15/09/23"
 output: html_document
 ---
 
-Complete the following problem without using the R built-in functions.
-Consider the ChickWeight dataset built into R. To see a description of this dataset, type ?ChickWeight.
-a) Calculate the mean and variance of variables weight and Time.
-b) Calculate the covariance between weight and Time. Interpret the result.
+### Loading dataset
 
-## Loading dataset
+The first step will be to load the dataset to a variable to access easily to the inside data.
 
 ```{r}
 dataset <- ChickWeight
 ```
 
-
-## a) Calculate the mean and variance of variables weight and Time.
+### a) Calculate the mean and variance of variables weight and Time.
 
 ```{r}
 weight <- dataset$weight
 time <- dataset$Time
 ```
 
-- Mean:
+#### Mean
+
+The formula of the mean can be represented as:
+
+$$
+\bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
+$$
+
+Where:
+
+- $\bar{x}$ = Mean.
+- $n$ = Number of elements.
+- $x_i$ = Value of the ith element.
+
+Implementing the previous formula in `R` would look like this:
 
 ```{r}
 my_mean <- function(data) {
-  s <- 0
-  cont <- 0
-  for (d in data) {
-    s <- s + d
-    cont <- cont + 1
+  x <- 0
+  n <- 0
+  for (x_i in data) {
+    x <- x + x_i
+    n <- n + 1
   }
-  return(s / cont)
+  return(x / n)
 }
 ```
+
+Now the values ​​of the means can be calculated using the previous function:
 
 ```{r}
 my_mean(weight)
 my_mean(time)
 ```
 
-- Variance
+#### Variance
+
+The formula of the variance can be represented as:
+
+$$
+\sigma^2 = \frac{1}{n - 1} \sum_{i=1}^{n} (x_i - \bar{x})^2
+$$
+
+Where:
+
+- $\sigma^2$ = Variance.
+- $n$ = Number of elements.
+- $x_i$ = Value of the ith element.
+- $\bar{x}$ = Mean of the elements.
+
+Implementing the previous formula in `R` would look like this:
 
 ```{r}
 variance <- function(data) {
   mean <- my_mean(data)
-  cont <- 0
-  s <- 0
-  for (d in data) {
-    s <- s + (d - mean)^2
-    cont <- cont + 1
+  n <- 0
+  sigma_sq <- 0
+  for (x_i in data) {
+    sigma_sq <- sigma_sq + (x_i - mean)^2
+    n <- n + 1
   }
-  return(s / (cont - 1))
+  return(sigma_sq / (n - 1))
 }
 ```
+
+Now the values ​​of the means can be calculated using the previous function:
 
 ```{r}
 variance(weight)
 variance(time)
 ```
 
-## b) Calculate the covariance between weight and Time. Interpret the result.
+### b) Calculate the covariance between weight and Time. Interpret the result.
+
+#### Covariance
+
+The formula of the covariance can be represented as:
+
+$$S_{xy} = \frac{\sum_{i=1}^{n} {(x_i - \bar{x}) * (y_i - \bar{y})}}{n - 1}$$
+
+Where:
+
+- $S_{xy}$ = Covariance.
+- $\bar{x}$ = Mean of the x elements.
+- $x_i$ = Value of the ith x element.
+- $\bar{y}$ = Mean of the y elements.
+- $y_i$ = Value of the ith y element.
+- $n$ = Number of elements; $|x|=|y|$.
+
+Implementing the previous formula in `R` would look like this:
 
 ```{r}
-covariance <- function(data_1, data_2) {
-  mean_1 <- my_mean(data_1)
-  mean_2 <- my_mean(data_2)
-  cont <- 0
-  s <- 0
-  for (d in data_1) {
-    s <- s + (data_1[cont + 1] - mean_1) * (data_2[cont + 1] - mean_2)
-    cont <- cont + 1
+covariance <- function(x, y) {
+  mean_1 <- my_mean(x)
+  mean_2 <- my_mean(y)
+  n <- 0
+  s_xy <- 0
+  for (d in x) {
+    s_xy <- s_xy + (x[n + 1] - mean_1) * (y[n + 1] - mean_2)
+    n <- n + 1
   }
-  return(s / (cont - 1))
+  return(s_xy / (n - 1))
 }
 ```
 
+Now the values ​​of the means can be calculated using the previous function:
+
 ```{r}
 covariance(weight, time)
+```
+
+#### Result interpretation
+
+As can be seen, when executing the covariance between weight and time, a positive covariance is obtained, specifically a strong positive relationship. What does this mean? This means that both variables are likely to increase or decrease together. In other words, when time or weight increases the other variable is also likely to increase and vice versa, when one decreases, the other is most likely will also do so.
+
+### Verifying results
+
+To check if the functions are implemented correctly they can be compared to the built-in `R`functions:
+
+- Note: The tests are basically the assertion between the implemented function and that of R. And compared to the first 5 decimals.
+
+```{r}
+digits <- 5 # Number of digits to round up
+```
+
+#### Mean
+
+```{r}
+round(mean(weight), digits) == round(my_mean(weight), digits)
+round(mean(time), digits) == round(my_mean(time), digits)
+```
+
+#### Variance
+
+```{r}
+round(var(weight), digits) == round(variance(weight), digits)
+round(var(time), digits) == round(variance(time), digits)
+```
+
+#### Covariance
+
+```{r}
+round(cov(weight, time), digits) == round(covariance(weight, time), digits)
 ```
