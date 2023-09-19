@@ -1,6 +1,6 @@
 ---
 title: "Introduction to R."
-author: "Sergi Mayol"
+author: "Margaret Miró"
 date: "21746 Data Mining 2023-24"
 output: html_document
 ---
