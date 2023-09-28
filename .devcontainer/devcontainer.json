@@ -10,7 +10,8 @@
         "rdebugger.r-debugger",
         "eamodio.gitlens",
         "ritwickdey.liveserver",
-        "tomoki1207.pdf"
+        "tomoki1207.pdf",
+        "mechatroner.rainbow-csv"
       ]
     }
   }

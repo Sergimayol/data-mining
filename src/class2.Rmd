@@ -1,0 +1,55 @@
+---
+title: "Class 2"
+author: "@Sergimayol"
+date: "28/09/23"
+output: html_document
+---
+
+```{r}
+library(GGally)
+```
+
+### Loading dataset
+
+The first step will be to load the dataset to a variable to access easily to the inside data.
+
+```{r}
+dataset <- read.csv("./datasets/insurance.csv")
+```
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+hist(dataset$expenses)
+```
+
+```{r}
+pairs(dataset[c("age", "bmi", "children", "expenses")])
+```
+
+```{r}
+plot(dataset)
+```
+
+```{r}
+ggpairs(dataset)
+```
+
+```{r}
+ggplot(dataset, aes(expenses)) +
+  geom_density()
+```
+
+```{r}
+m <- lm(dataset$expenses ~ ., data = dataset)
+print(m)
+summary(m)
+```
+
+```{r}
+r <- log(dataset$expenses)
+print(r)
+dataset$sex2 <- r
+```
