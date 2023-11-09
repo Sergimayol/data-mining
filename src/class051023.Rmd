@@ -1,0 +1,50 @@
+---
+title: "Class 05/10/2023"
+author: "@Sergimayol"
+date: "15/09/23"
+output: html_document
+---
+
+```{r}
+dataset <- read.csv("./datasets/BigMartTrain.csv")
+```
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+hist(dataset$Item_Outlet_Sales)
+hist(dataset$Item_Outlet_Sales, breaks = 100)
+```
+
+```{r}
+out_norm <- dataset$Item_Outlet_Sales / length(dataset$Item_Outlet_Sales)
+hist(out_norm)
+```
+
+```{r}
+hist(log(dataset$Item_Outlet_Sales), breaks = 100)
+```
+
+```{r}
+hist(sqrt(dataset$Item_Outlet_Sales), breaks = 100)
+```
+
+```{r}
+hist(sqrt(out_norm), breaks = 100)
+```
+
+```{r}
+summary(as.factor(dataset$Item_Identifier))
+```
+
+```{r}
+length(levels(as.factor(dataset$Item_Identifier)))
+```
+
+Se debe intalar stringr, ggplot2 y dplyr
+
+```{r}
+summary(as.factor(dataset$Item_Fat_Content))
+```
