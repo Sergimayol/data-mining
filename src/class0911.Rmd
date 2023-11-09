@@ -1,0 +1,259 @@
+---
+title: "Case Study. Teens' Social Networks: Data Preparation"
+author: "@Sergimayol"
+date: "15/09/23"
+output: html_document
+---
+
+```{r}
+library("tidyr")
+```
+
+```{r}
+data <- read.csv("./datasets/snsdata.csv")
+```
+
+```{r}
+str(data)
+```
+
+```{r}
+summary(data)
+```
+
+```{r}
+new_data <- na.omit(data$age)
+mean <- mean(new_data)
+mean
+age <- replace(data$age, is.na(data$age), mean)
+summary(age)
+```
+
+```{r}
+df <- data
+df$age <- age
+summary(df)
+
+res <- sum(is.na(df$gender))
+res
+
+df$gender <- ifelse(is.na(df$gender), mode(df$gender), df$gender)
+
+res <- sum(is.na(df$gender))
+res
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Data analysis, in practice, consists typically of some different steps which can be subsumed as “preparing data” and “model data”. Often, the first part, “prepare”, is the most time consuming. Many analysts prefer the cool modeling aspects, but to succeed one rather has to get his (her) hands dirty. Preparing data is required to get the best results from machine learning algorithms.
+
+No data set is perfect; you will be missing data, have misinterpreted data, or have incorrect data. Some data fields will be dirty and inconsistent. If you don’t take the time to examine the data before you start to model, you may find yourself redoing your work repeatedly as you discover bad data fields or variables that need to be transformed before modeling. In the worst case, you’ll build a model that returns incorrect predictions—and you won’t be sure why. By addressing data issues early, you can save yourself some unnecessary work, and a lot of headaches!
+
+The typical steps in “cleansing” your data include:
+
+* identify missings
+* identify outliers
+* check for overall plausibility and errors (e.g, typos)
+* identify highly correlated variables
+* identify variables with (nearly) no variance
+* identify variables with strange names or values
+* check variable classes (eg. characters vs factors)
+* remove/transform some variables (maybe your model does not like categorial variables)
+* rename some variables or values (especially interesting if large number)
+* check some overall pattern (statistical/ numerical summaries)
+* center/scale variables
+1. Scale: The scale transform calculates the standard deviation for an attribute and divides each value by that standard deviation.
+2. Center: The center transform calculates the mean for an attribute and subtracts it from each value.
+3. Standardize: Combining the scale and center transforms will standardize your data. Attributes will have a mean value of 0 and a standard deviation of 1.
+4. Normalize: Data values can be scaled into the range of [0, 1] which is called normalization.
+
+
+
+It is hard to know which data-preprocessing methods to use. This is a small check list of steps that should be considered. What you actually do depends on the behavior of the data you have and the research question you want to answer. Some machine learning algorithms require the data to be in a specific format. Association rules needs "transactions" and clustering requires "distances". Generally algorithms can perform better if the data is prepared in a specific way, but not always. Finally, your raw data may not be in the best format to best expose the underlying structure and relationships to the predicted variables. It is important to prepare your data in such a way that it gives various different machine learning algorithms the best chance on your problem. 
+
+Don’t get lost in big projects. The difficulties then arise not because data or models are difficult, but due to the sheer volume of the analysis.
+
+We will consider two data mining examples and show possible solutions to data preparation and analysis.
+
+
+## EXAMPLE 1: teens
+
+Problem Statement: Given the text of teenagers’ Social Networking Service (SNS) pages, it is possible to identify groups that share common interests such as sports, religion, or music. Clustering methods can automate the process of discovering the natural segments in this population. 
+
+**Research Question:** Find the natural clusters of teenagers based on their messages in a social network. Using this model, we can find similar groups that will help  companies’ marketing teams to advertise appropriate products online by targeting students with certain interest or belief.
+
+### The Data
+The SNS dataset (snsdata.csv) contains 30000 observations, each one represents a high school student, and 40 features that provide information about the student. Four variables: graduation year, gender, age and number of friends one has connected throught the SNS for each student from the private information of the student. A text mining tool was used to divide the SNS page content into words. From the top 500 words appearing across all pages, 36 words were chosen to represent students interest and beliefs using a  variable that indicates the number of times the word appeared in the person’s SNS profile.  The 36 words include terms such as football, sexy, kissed, bible, shopping, death, and drugs. Information like this can help to group individuals into clusters with similar interest.
+```{r}
+teens <- read.csv("./datasets/snsdata.csv")
+```
+
+#### Explore the Data
+Let's load the data and get a general feeling.
+```{r}
+str(teens)
+summary(teens)
+```
+At a first glance, we see that two variables have NAs, gender with 2724NAs and age with 5086. There seems to be something else suspicious with the age variable since he minimum value is 3.086 and its maximum value 106.927. The word that is repeated the most is blonde 327 times and there are several words that appear only 8 times: abercrombie, clothes and drunk. 
+
+#### Preprocess Data/Feature Engineering
+Let's start by studying the presence of missing values in gender and age, variables  corresponding to users’ private information.
+
+- Gender: 
+The table() function is used to examine the data quality of gender feature. Since gender is a categorical feature, it will be splitted by categories each with number of observations. To force table() to present everything including the NA values we use the useNA paramter, set to ‘ifany’ inside table(). 
+```{r}
+table(teens$gender, useNA = "ifany")
+```
+In the whole dataset, about 9% (2724/30000) of values for the gender feature are missing. 
+
+A way to solve the missing value problem for a categorical variable is to create an additional category for ‘NA’. This can be done by creating dummy variables for female and unknown gender.
+```{r}
+# reassign missing gender values to "unknown"
+teens$female <- ifelse(teens$gender == "F" &
+  !is.na(teens$gender), 1, 0) ## assign value of 1 if the gender is equal to female and not equal to NA, and 0 otherwise
+teens$no_gender <- ifelse(is.na(teens$gender), 1, 0) ## assigs value of 1 if the gender is missing value, and 0 otherwise
+```
+This way, two binary categorical feature/dummy variables are created to represent identity of each female or no_gender, when both of these dummies are 0 it implies that the observation corresponds to a male student.
+
+let's check out the results
+```{r}
+table(teens$gender, useNA = "ifany")
+table(teens$female, useNA = "ifany")
+table(teens$no_gender, useNA = "ifany")
+```
+
+
+
+
+- Age: Since Age is a numeric variable, we use summary().
+```{r}
+summary(teens$age)
+```
+In addition to the NAs from gender, there’s about 5000 more observation that have missing values in the age feature. This is about 17% (5086/30000) of the dataset with missing value in the age feature. In a situation where a large dataset contains small amount of missing values, its reasonable to remove those observations as long as that small amount of removal does not affect the original distribution of the data or representation of the whole population. But in situaion like this containg 26% (7810/30000) of missing data, the removal of these observations can severely affect the overall distribution compared to the original data prior removal. So alternative data cleaning methods must be used.
+
+Furthermore, we have already mentioned that the age range, from 3 to 106, is unrealistic because student at age of 3 or 106 would not attend high school. We could consider these values as outliers. Let's get a better idea of what is going on wih a boxplot.
+```{r}
+boxplot(teens$age, ylab = "Age")
+```
+
+A reasonable age range for people attending high school will be the age range between 13 to 20. An ifelse() function is used to keep any age values between 13 to 20 as it is, and change other value into NA.
+```{r}
+teens$age <- ifelse(teens$age >= 13 & teens$age < 20,
+  teens$age, NA
+) # eliminate age outliers
+```
+Let's see how the "new data" looks.
+```{r}
+summary(teens$age)
+```
+The values of the variable seems more reasonable, but there has been an increase in NAs to a 18% (5523/30000).
+
+In order to eliminate 5523 missing values on age, I will use an imputation of mean age value calculated for each specific graduation year (by cohort).
+
+First we find he overall mean:
+```{r}
+mean(teens$age, na.rm = TRUE) ## excludes NA
+```
+The aggregate function can be used to calculate the mean age by graduation year groups of observations excluding NA values. 
+```{r}
+aggregate(data = teens, age ~ gradyear, mean, na.rm = TRUE)
+```
+Output shows a pretty reasonable value for students with various expected graduation year. Each group is estimate to be one year apart.
+
+Using ave(), we create a a vector with the average age (removing NA) for each graduation year, repeated by person. The resulting vector has the same length as the number of rows of the dataset.
+```{r}
+ave_age <- ave(teens$age, teens$gradyear,
+  FUN = function(x) mean(x, na.rm = TRUE)
+)
+```
+The new variable will be:
+```{r}
+teens$age <- ifelse(is.na(teens$age), ave_age, teens$age)
+```
+Using ifelse(), the ave_age vector constructed previously can be flexibly added into the original age featue of cells with missing values. The ifelse() claims that if there is a missing value in position of the age feature, assign the average age value of that graduation year group. Otherwise, use the original value stated in the age feature.
+
+Let's check the age variable:
+```{r}
+summary(teens$age)
+```
+All NA values have disappeared, they have been replaced by the average age value of the respective graduation year.
+
+The summary of the teens data is:
+```{r}
+summary(teens)
+```
+
+### Clustering: training the model
+
+Once the data has been cleansed, we can start working on the model. 
+
+In the cluster analysis, only the 36 variables that represent the number of times the words associated to various interests appeared on the SNS profiles of teens will be considered. A dataset "interests" consisting of these features will be created. 
+```{r}
+interests <- teens[5:40]
+```
+As was mentioned before, the appearence of the words have different weights, from 8 to 327. To eliminate bias a z-score normalization is applied to all of the numerical variables. 
+```{r}
+interests_z <- as.data.frame(lapply(interests, scale))
+```
+The resulting variables have a mean of zero and a standard deviation of one. Let's check it out.
+```{r}
+summary(interests_z)
+```
+We will be performing k-means clustering. The last decision is how many clusters to use for segmenting the data. Based on the five stereotypical teenagers groups in the movie The Breakfast Club: a Brain, an Athlete, a Basket Case, a Princess, and a Criminal; k=5 will be used. 
+```{r}
+set.seed(2345)
+teen_clusters <- kmeans(interests_z, 5)
+```
+The set.seed() is used to ensure the result matches each run since the k-means uses random points as initial centroids. Using the kmeans() on the dataset, setting the number of clusters to 5, a cluster object, teen_clusters, is then modeled.
+
+### Clustering: evaluating model performance
+
+In this example, the succsess of the clustering will be measured mostly in qualitative terms. We start by checking how many students are there in each cluster. Usually, if the clusters are too large or too small, they are not likely to be very useful.
+```{r}
+teen_clusters$size # look at the size of the clusters
+```
+There are no clusters containing only a single person, which can happen occasionally with k-means, which is a good sign. Nowever, the last cluster contains 21514 users, which is quite a lot compared to other clusters. This aspect should be examined in more detail later on. 
+
+For a more in-depth look at the clusters, the coordinates of the cluster centroids should be examined. 
+```{r}
+teen_clusters$centers
+```
+The above values show cluster centroid for each of the variables. The rows referes to the five clusters, with the numebrs across each row indicates the cluster’s centroid for the interest listed at the top of the column. Negative numbers correspond to values below the overall mean and positive values are above the the overall mean.
+
+Given the interests, it is already possible to infer some characteristics of the clusters. Cluster 1, 3 and 4 are substantially above the mean on all the listed sports. Out of these three clusters 1 and 4 are not interested in drugs and drunk, suggesting that one of these clusters may include athletes.
+
+By continuing to examine the clusters in this way, it’s possible to construct a table listing the dominant interests of each of the groups.
+
+
+
+### Clustering: analizing model performance
+
+Because clustering creates new information, the analysis of a clustering algorithm depends at least somewhat on both the quality of the clusters themselves as well as what you do with that information. In order to turn the insights gathered from the clustering process into action, I apply the clusters back onto the full dataset and analize how the variables corresponding to users’ private information have been grouped.
+```{r}
+teens$cluster <- teen_clusters$cluster ## apply the cluster IDs to the original data frame
+teens[1:10, c("cluster", "gender", "age", "friends")] ##  look at the first ten records
+```
+A more useful way to look at the analysis result is to look at various features by clusters. Let's start by examining the average age by cluster. 
+```{r}
+aggregate(data = teens, age ~ cluster, mean)
+```
+The avarage age is 16.8 for a cluster 1 (younger users) and it is similar for the other four clusters. By default, there seems to be no meaning for the cluster label, but the meaning for the clusters can be assigned by the modeler.
+
+What happens with gender?
+```{r}
+aggregate(data = teens, female ~ cluster, mean)
+```
+There is about 84% of the population are female belong to clusters 1 and 3, whereas only 70% of population are female in cluster 5.
+
+When we examine the average number of friends by clusters: 
+```{r}
+aggregate(data = teens, friends ~ cluster, mean)
+```
+Teens belonging to cluster 1 has an average of 41 friends, while teens belonging to cluster 5 only have an average of 28 friends. The results matches the intuitive thinking that the number of friends seems to be positively correlated to the stereotype of each cluster’s high school popularity. 
+
+About 74% of the SNS users are female. Clusters 1 and 3 are around 83 percent female, while Cluster 5 is only 69 procent female. The same cluster 5 has the smallest amount of friends on average - about 27 percent, while clusters 1 and 3 have the highest average number of friends.
+
+The association among gender and number of friends in the clusters we have obtained suggests that the clustering techniques can be useful for preparing marketing activities among teens.
