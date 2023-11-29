@@ -21,7 +21,7 @@ library(gridExtra)
 
 ## Data
 
-This assignment uses the data frame Prestige included in the “car” package.
+This assignment uses the data frame Prestige included in the "car" package.
 
 ```{r Prestige}
 ?Prestige
@@ -74,7 +74,7 @@ grid_layout
 
 3.- Consider only variables "income" and "education". Draw a histogram for variable "income". Draw the boxplot for "education". Draw a scatterplot of both variables to see their relationship. Fit a linear regression and see how well this model fits the observed data. Draw the model over the scatterplot. What do you observe? Do the regression assumptions hold?
 
-- Histogram for the `income` variable:
+-   Histogram for the `income` variable:
 
 ```{r}
 ggplot(df, aes(x = income)) +
@@ -82,7 +82,7 @@ ggplot(df, aes(x = income)) +
   labs(title = "Histogram of Income", x = "Income", y = "Frequency")
 ```
 
-- Boxplot for the `education` variable:
+-   Boxplot for the `education` variable:
 
 ```{r}
 ggplot(df, aes(y = education)) +
@@ -90,7 +90,7 @@ ggplot(df, aes(y = education)) +
   labs(title = "Boxplot of Education", y = "Education")
 ```
 
-- Scatter plot of `education vs income`:
+-   Scatter plot of `education vs income`:
 
 ```{r}
 ggplot(df, aes(x = education, y = income)) +
@@ -98,7 +98,7 @@ ggplot(df, aes(x = education, y = income)) +
   labs(title = "Scatter Plot of Education vs Income", x = "Education", y = "Income")
 ```
 
-- Linear regression on the observed data:
+-   Linear regression on the observed data:
 
 ```{r}
 ggplot(df, aes(x=education, y=income)) +
@@ -107,13 +107,24 @@ ggplot(df, aes(x=education, y=income)) +
   labs(title="Regression Plot: Education vs. Income", x="Education", y="Income")
 ```
 
-As the result above shows, ... TODO
+```{r}
+lin_model <- lm(income ~ education, data = df)
+summary(lin_model)
+# Residuals vs Fitted Values
+plot(lin_model, which = 1)
+```
+
+As the result above shows the R2 of the model is $\approx 0.33$%, which is not good. Also in the plot the relationship between the predictors and the response is not linear.
 
 4.- Consider the polynomial regression model. How well does the polynomial model fit the data? Compare the R2 of both linear and polynomial models. What do you conclude?
 
 ```{r}
-model <- lm(income ~ poly(education, 2), data = df)
+poly_model <- lm(income ~ poly(education, 2), data = df)
+summary(poly_model)
+```
 
+
+```{r}
 scatter_plot <- ggplot(df, aes(x = education, y = income)) +
   geom_point() +
   labs(title = "Education vs Income", x = "Education", y = "Income")
@@ -124,7 +135,7 @@ scatter_plot + geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, 
 
 As it can be seeing above, the polynomial regression model ($R^2$), ... TODO
 
-- Comparation between the Linear regression and Polynomial regression model, side to side:
+-   Comparation between the Linear regression and Polynomial regression model, side to side:
 
 ```{r}
 linear_reg_plot <- ggplot(df, aes(x=education, y=income)) +
@@ -152,7 +163,7 @@ So it can be concluded that, ... TODO
 
 5.- Would some transformation procedure of the variables, such as log or square root, allow for a better model? Try out different transformations and plot the transformed variables. Which transformation is the "best"? For the best transformation, fit a regression model.
 
--  Some transformation of the variables can be the following:
+-   Some transformation of the variables can be the following:
 
 ```{r}
 # Log transformation
@@ -168,7 +179,7 @@ df$income_sqr <- df$income^2
 df$education_sqr <- df$education^2
 ```
 
--  A function can be defined to get the Linear regression vs Polynomial regression models plots:
+-   A function can be defined to get the Linear regression vs Polynomial regression models plots:
 
 ```{r}
 linear_vs_ploy_plot <- function(df, x, y) {
@@ -196,7 +207,7 @@ sqrt_plots <- linear_vs_ploy_plot(df, "education_sqrt", "income_sqrt")
 sqr_plots <- linear_vs_ploy_plot(df, "education_sqr", "income_sqr")
 ```
 
-- Log transformations:
+-   Log transformations:
 
 ```{r}
 grid_layout <- grid.arrange(
@@ -207,7 +218,7 @@ grid_layout <- grid.arrange(
 grid_layout
 ```
 
-- Square root transformations:
+-   Square root transformations:
 
 ```{r}
 grid_layout <- grid.arrange(
@@ -218,7 +229,7 @@ grid_layout <- grid.arrange(
 grid_layout
 ```
 
-- Square transformations:
+-   Square transformations:
 
 ```{r}
 grid_layout <- grid.arrange(
