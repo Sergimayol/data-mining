@@ -24,7 +24,6 @@ library(gridExtra)
 This assignment uses the data frame Prestige included in the "car" package.
 
 ```{r Prestige}
-?Prestige
 dataset <- Prestige
 ```
 
@@ -52,7 +51,7 @@ str(dataset)
 
 2.- The focus in this assignment is the regression model, where "income" will be the dependent variable. Draw different plots to see the relationship between the variables.
 
-To simply the naming of the dataset it can be renamed to `df`
+To simplify the naming of the dataset it can be renamed to `df`
 
 ```{r}
 df <- dataset
@@ -114,7 +113,15 @@ summary(lin_model)
 plot(lin_model, which = 1)
 ```
 
-As the result above shows the R2 of the model is $\approx 0.33$%, which is not good. Also in the plot the relationship between the predictors and the response is not linear.
+As the result above shows, the R2 of the model has an score of $\approx 0.33$%, which is not good. It can be seen that there are some outliers, and there's a noticeable dispersion of the data that makes the regression model struggle to accurately predict values that fall outside the norm. Let’s assess the validity of our assumptions:
+
+1. **Linearity in the relationship between X and Y**: As can be seen in the plots, there’s no evidence supporting a linear relationship. In fact, some values decrease despite an increase in education.
+
+2. **Normal distribution of Y at each X value**: The data does not exhibit a normal distribution, with fewer data points as income increases.
+
+3. **Uniform variance of Y at every X value**: This assumption does not hold, as certain values are substantially larger than others, displaying varying degrees of difference.
+
+4. **Independence of observations**: We can assume independence since income is not influenced by other incomes.
 
 4.- Consider the polynomial regression model. How well does the polynomial model fit the data? Compare the R2 of both linear and polynomial models. What do you conclude?
 
@@ -122,7 +129,6 @@ As the result above shows the R2 of the model is $\approx 0.33$%, which is not g
 poly_model <- lm(income ~ poly(education, 2), data = df)
 summary(poly_model)
 ```
-
 
 ```{r}
 scatter_plot <- ggplot(df, aes(x = education, y = income)) +
@@ -133,7 +139,7 @@ scatter_plot + geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, 
   labs(title = "Polynomial Regression: Education vs Income")
 ```
 
-As it can be seeing above, the polynomial regression model ($R^2$), ... TODO
+As can be seen above, the polynomial regression model ($R^2$) seems to fit better and be more sensitive to the data, especially the outliers and further values. This suggests that it performs slightly better as the income raises. Additionally, it appears to be a better model than the linear one, as indicated by the model summary.
 
 -   Comparation between the Linear regression and Polynomial regression model, side to side:
 
@@ -157,9 +163,7 @@ grid_layout <- grid.arrange(
 grid_layout
 ```
 
-It can be seeing that, ... TODO
-
-So it can be concluded that, ... TODO
+It can be concluded that the polynimial model fits slightly better to the data, as said before.
 
 5.- Would some transformation procedure of the variables, such as log or square root, allow for a better model? Try out different transformations and plot the transformed variables. Which transformation is the "best"? For the best transformation, fit a regression model.
 
@@ -240,4 +244,36 @@ grid_layout <- grid.arrange(
 grid_layout
 ```
 
-The "best" transformation is ..., TODO
+Now that we have seeing the model, we can see the scores:
+
+```{r}
+lin_model_log <-  lm(income_log ~ education_log, data = df)
+lin_model_sqrt <-lm(income_sqrt ~ education_sqrt, data = df)
+lin_model_sqr <-lm(income_sqr ~ education_sqr, data = df)
+```
+
+```{r}
+summary(lin_model_log)
+```
+
+```{r}
+summary(lin_model_sqrt)
+```
+
+```{r}
+summary(lin_model_sqr)
+```
+
+The 'best' transformation, as seen in the results from the models, is the square root, as it yields the highest Adjusted R-squared score ($\approx 0.3275$). However, this score is still slightly worse than the linear model fitted on non-transformed data.
+
+Finally, we can try to fit the model with only one data part transformed from the squared root:
+
+```{r}
+summary(lm(income ~ education_sqr, data = df))
+```
+
+```{r}
+summary(lm(income_sqr ~ education, data = df))
+```
+
+As it can be seeing, the results doesn't improve significantly and still a bad score from the model.
