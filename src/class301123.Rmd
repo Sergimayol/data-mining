@@ -1,0 +1,57 @@
+---
+title: "Class301123"
+author: "sergi"
+date: "2023-11-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(GGally)
+library(ggplot2)
+```
+
+
+```{r}
+dataset <- read.csv("../datasets/2008.csv")
+df <- dataset
+```
+
+
+```{r}
+ggcorr(data = df)
+```
+
+```{r}
+cormat <- round(cor(df),2)
+melted_cormat <- melt(cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+```
+```{r}
+# Assuming your dataset is named 'df' and the column you want to check is 'column_name'
+# Replace 'column_name' with the actual name of your column
+
+# Check if values in the column are all unique
+all_unique <- !any(duplicated(df$FlightNum))
+
+# Print the result
+if (all_unique) {
+  cat("All values in the column are unique.\n")
+} else {
+  cat("There are duplicate values in the column.\n")
+}
+
+```
+
+```{r}
+ggplot(data = df, aes(x = DepDelay, y = FlightNum)) + geom_point()
+```
+
+```{r}
+ggplot(data = df, aes(x = ArrDelay, y = FlightNum)) + geom_point()
+```
+
