@@ -45,3 +45,6 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 **/tests/**
+
+# src/output .html
+src/output/*.html
