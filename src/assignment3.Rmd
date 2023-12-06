@@ -185,128 +185,230 @@ library(mlpack)
 library(caret)
 ```
 
+```{r}
+train_test_split <- function(x_df, y_labs, test_size, seed) {
+  set.seed(seed)
+  index <- sample(1:nrow(x_df), (1 - test_size) * nrow(x_df))
+
+  train_data <- x_df[index, ]
+  train_labels <- as.matrix(y_labs[index])
+
+  test_data <- x_df[-index, ]
+  test_labels <- as.matrix(y_labs[-index])
+
+  return(list(
+    train_data = train_data,
+    train_labels = train_labels,
+    test_data = test_data,
+    test_labels = test_labels
+  ))
+}
+```
+ 
+```{r}
+run_classifier <- function(classifier, train_data, train_labels, test_data, test_labels) {
+  model <- classifier(training = train_data, labels = train_labels)
+  model <- model$output_model
+
+  output <- classifier(input_model = model, test = test_data)
+  predictions <- output$predictions
+
+  res <- confusionMatrix(
+    factor(predictions, levels = c(1, 2, 3)),
+    factor(test_labels)
+  )
+
+  return(res)
+}
+```
+
 ### Perceptron
 
 ```{r}
-perceptron_ <- perceptron(training = train_data, labels = train_labels)
+percep_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
-perceptron_model <- perceptron_$output_model
-```
+percep_results <- vector("list", length = length(percep_runs))
 
-```{r}
-precep_output <- perceptron(input_model = perceptron_model, test = test_data)
-percep_pred <- precep_output$predictions
-```
+for (i in seq_along(percep_runs)) {
+  s_ <- percep_runs[[i]][[1]]
+  x_ <- percep_runs[[i]][[2]]
 
-```{r}
-percep_res <- confusionMatrix(factor(percep_pred, levels = c(1, 2, 3)), factor(test_labels))
-percep_res
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    perceptron,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  percep_results[[i]] <- model_res
+}
+
+percep_results
 ```
 
 ### Random Forest
-
 ```{r}
-random_forest_ <- random_forest(training = train_data, labels = train_labels)
+randft_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
-randft_model <- random_forest_$output_model
-```
+randft_results <- vector("list", length = length(randft_runs))
 
-```{r}
-randft_output <- random_forest(input_model = randft_model, test = test_data)
-randft_pred <- randft_output$predictions
-```
+for (i in seq_along(randft_runs)) {
+  s_ <- randft_runs[[i]][[1]]
+  x_ <- randft_runs[[i]][[2]]
 
-```{r}
-randft_res <- confusionMatrix(factor(randft_pred, levels = c(1, 2, 3)), factor(test_labels))
-randft_res
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    random_forest,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  randft_results[[i]] <- model_res
+}
+
+randft_results
 ```
 
 ### Linear SVM
-
 ```{r}
-svm_ <- linear_svm(training = train_data, labels = train_labels)
+svm_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
-svm_model <- svm_$output_model
-```
+svm_results <- vector("list", length = length(svm_runs))
 
-```{r}
-svm_output <- linear_svm(input_model = svm_model, test = test_data)
-svm_pred <- svm_output$predictions
-```
+for (i in seq_along(svm_runs)) {
+  s_ <- svm_runs[[i]][[1]]
+  x_ <- svm_runs[[i]][[2]]
 
-```{r}
-svm_res <- confusionMatrix(factor(svm_pred, levels = c(1, 2, 3)), factor(test_labels))
-svm_res
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    linear_svm,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  svm_results[[i]] <- model_res
+}
+
+svm_results
 ```
 
 ## Softmax Regression
 
 ```{r}
-soft_ <- softmax_regression(training = train_data, labels = train_labels)
-soft_model <- soft_$output_model
+soft_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
+
+soft_results <- vector("list", length = length(soft_runs))
+
+for (i in seq_along(soft_runs)) {
+  s_ <- soft_runs[[i]][[1]]
+  x_ <- soft_runs[[i]][[2]]
+
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    softmax_regression,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  soft_results[[i]] <- model_res
+}
+
+soft_results
 ```
 
-```{r}
-soft_output <- softmax_regression(input_model = soft_model, test = test_data)
-soft_pred <- soft_output$predictions
-```
-
-```{r}
-soft_res <- confusionMatrix(factor(soft_pred, levels = c(1, 2, 3)), factor(test_labels))
-soft_res
-```
 ## Naive Bayes Classifier
-
 ```{r}
-nbc_ <- nbc(training = train_data, labels = train_labels)
+nbc_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
-nbc_model <- nbc_$output_model
-```
+nbc_results <- vector("list", length = length(nbc_runs))
 
-```{r}
-nbc_output <- nbc(input_model = nbc_model, test = test_data)
-nbc_pred <- nbc_output$predictions
-```
+for (i in seq_along(nbc_runs)) {
+  s_ <- nbc_runs[[i]][[1]]
+  x_ <- nbc_runs[[i]][[2]]
 
-```{r}
-nbc_res <- confusionMatrix(factor(nbc_pred, levels = c(1, 2, 3)), factor(test_labels))
-nbc_res
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    nbc,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  nbc_results[[i]] <- model_res
+}
+
+nbc_results
 ```
 
 ## Decision Tree
 
 ```{r}
-dec_tree_ <- decision_tree(training = train_data, labels = train_labels)
+dec_tree_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
-dec_tree_model <- dec_tree_$output_model
-```
+dec_tree_results <- vector("list", length = length(dec_tree_runs))
 
-```{r}
-output <- decision_tree(input_model = dec_tree_model, test = test_data)
-dec_tree_pred <- output$predictions
-```
+for (i in seq_along(dec_tree_runs)) {
+  s_ <- dec_tree_runs[[i]][[1]]
+  x_ <- dec_tree_runs[[i]][[2]]
 
-```{r}
-dec_tree_res <- confusionMatrix(factor(dec_tree_pred, levels = c(1, 2, 3)), factor(test_labels))
-dec_tree_res
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    decision_tree,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  dec_tree_results[[i]] <- model_res
+}
+
+dec_tree_results
 ```
 
 ## Adaptive Boosting
 
 ```{r}
-adaboost_ <- adaboost(training = train_data, labels = train_labels)
-adaboost_model <- adaboost_$output_model
+adaboost_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
+
+adaboost_results <- vector("list", length = length(adaboost_runs))
+
+for (i in seq_along(adaboost_runs)) {
+  s_ <- adaboost_runs[[i]][[1]]
+  x_ <- adaboost_runs[[i]][[2]]
+
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+
+  model_res <- run_classifier(
+    adaboost,
+    res$train_data,
+    res$train_labels,
+    res$test_data,
+    res$test_labels
+  )
+
+  adaboost_results[[i]] <- model_res
+}
+
+adaboost_results
 ```
 
-```{r}
-output <- adaboost(input_model = adaboost_model, test = test_data)
-adaboost_pred <- output$predictions
-```
-
-```{r}
-adaboost_res <- confusionMatrix(factor(adaboost_pred, levels = c(1, 2, 3)), factor(test_labels))
-adaboost_res
-``` 
+## Results 
 
 ```{r}
 confmat_plot <- function(confusion_df, ttl) {
@@ -324,17 +426,51 @@ confmat_plot <- function(confusion_df, ttl) {
 }
 
 grid.arrange(
-  confmat_plot(data.frame(percep_res$table), "Perceptron"),
-  confmat_plot(data.frame(randft_res$table), "Random Forest"),
-  confmat_plot(data.frame(svm_res$table), "SVM"),
-  confmat_plot(data.frame(soft_res$table), "Softmax"),
-  confmat_plot(data.frame(nbc_res$table), "Naive Bayes"),
-  confmat_plot(data.frame(dec_tree_res$table), "Decision Tree"),
-  confmat_plot(data.frame(adaboost_res$table), "Adaptive Boost."),
+  confmat_plot(data.frame(percep_results[[1]]$table), "Perceptron"),
+  confmat_plot(data.frame(randft_results[[1]]$table), "Random Forest"),
+  confmat_plot(data.frame(svm_results[[1]]$table), "SVM"),
+  confmat_plot(data.frame(soft_results[[1]]$table), "Softmax"),
+  confmat_plot(data.frame(nbc_results[[1]]$table), "Naive Bayes"),
+  confmat_plot(data.frame(dec_tree_results[[1]]$table), "Decision Tree"),
+  confmat_plot(data.frame(adaboost_results[[1]]$table), "Adaptive Boost."),
   ncol = 3
 )
 ```
 
 ```{r}
+models_results <- list(
+  percep_results, randft_results, svm_results,
+  soft_results, nbc_results, dec_tree_results, adaboost_results
+)
 
+accurracies <- vector("list", length = length(models_results))
+idx_1 <- 1
+for (model_results in models_results) {
+  model_accurracy <- vector("list", length = length(model_results))
+  idx_2 <- 1
+  for (result in model_results) {
+    model_accurracy[[idx_2]] <- result$overall[1]
+    idx_2 <- idx_2 + 1
+  }
+  accurracies[[idx_1]] <- model_accurracy
+  idx_1 <- idx_1 + 1
+}
+
+accuracy_model1 <- unlist(accurracies[[1]])
+accuracy_model2 <- unlist(accurracies[[2]])
+accuracy_model3 <- unlist(accurracies[[3]])
+accuracy_model4 <- unlist(accurracies[[4]])
+accuracy_model5 <- unlist(accurracies[[5]])
+accuracy_model6 <- unlist(accurracies[[6]])
+accuracy_model7 <- unlist(accurracies[[7]])
+
+accuracy_df <- data.frame(
+  Model = rep(c("Perceptron", "Random Forest", "SVM", "Softmax", "Naive Bayes", "Decision Tree", "AdaBoost"), each = length(accuracy_model1)),
+  Accuracy = c(accuracy_model1, accuracy_model2, accuracy_model3, accuracy_model4, accuracy_model5, accuracy_model6, accuracy_model7)
+)
+
+ggplot(accuracy_df, aes(x = Model, y = Accuracy, fill = Model)) +
+  geom_boxplot() +
+  labs(title = "Grouped Boxplot of Accuracy", y = "Accuracy") +
+  theme_minimal()
 ```
