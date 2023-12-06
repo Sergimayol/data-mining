@@ -25,7 +25,7 @@ library(ggcorrplot)
 dataset <- read.csv("../datasets/cirrhosis.csv")
 ```
 
-# Data preparation
+## Data preparation
 ```{r}
 summary(dataset)
 ```
@@ -44,8 +44,6 @@ df <- subset(df, select = -ID)
 
 ```{r}
 df <- df %>% mutate(Drug = ifelse(is.na(Drug), "None", Drug))
-summary(df)
-str(df)
 ```
 
 ```{r}
@@ -62,31 +60,38 @@ ggplot(df, aes(x = Status)) +
 ```{r}
 df$AgeInYear <- df$Age / 365.25 # 366
 df$AgeInYear
-min(df$AgeInYear)
-max(df$AgeInYear)
 ```
 
 ```{r}
-df$grupo_edad <- cut(df$AgeInYear, breaks = seq(0, 100, by = 10), include.lowest = TRUE, labels = FALSE)
+df$grupo_edad <- cut(df$AgeInYear,
+  breaks = seq(0, 100, by = 10),
+  include.lowest = TRUE,
+  labels = FALSE
+)
 df$grupo_edad
 ```
 ```{r}
 ggplot(df, aes(x = grupo_edad)) +
   geom_bar(fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Status", x = "Status", y = "Count")
+  labs(title = "Number of people per decade", x = "Decade group", y = "Count")
 ```
 
 ```{r}
-plot_corr <- ggcorr(data = df, low = "steelblue", mid = "white", high = "darkred", label = TRUE, label_alpha = 0, angle = -45,max_size = 10,
+plot_corr <- ggcorr(
+  data = df,
+  low = "steelblue",
+  mid = "white",
+  high = "darkred",
+  label = TRUE,
+  label_alpha = 0,
+  angle = -45,
+  max_size = 10,
   min_size = 2,
   size = 3,
-  hjust = 0.75)
+  hjust = 0.75
+)
 plot_corr +
   theme(text = element_text(size = 8))
-```
-
-```{r}
-ggplot(data = df, aes(x = Bilirubin, y = Copper, col = Sex)) + geom_point()
 ```
 
 ```{r}
@@ -100,17 +105,17 @@ stage_df <- subset(df, select = c(Stage, Ascites, Hepatomegaly, Spiders, Cholest
 
 summary(stage_df)
 
-stage_df <- stage_df %>% mutate(Ascites=ifelse(is.na(Ascites), "None", Ascites))
-stage_df <- stage_df %>% mutate(Hepatomegaly=ifelse(is.na(Hepatomegaly), "None", Hepatomegaly))
-stage_df <- stage_df %>% mutate(Spiders=ifelse(is.na(Spiders), "None", Spiders))
-stage_df <- stage_df %>% mutate(Cholesterol=ifelse(is.na(Cholesterol), mean(Cholesterol, na.rm=TRUE), Cholesterol))
-stage_df <- stage_df %>% mutate(Alk_Phos=ifelse(is.na(Alk_Phos), mean(Alk_Phos, na.rm=TRUE), Alk_Phos))
-stage_df <- stage_df %>% mutate(SGOT=ifelse(is.na(SGOT), mean(SGOT, na.rm=TRUE), SGOT))
-stage_df <- stage_df %>% mutate(Copper=ifelse(is.na(Copper), mean(Copper, na.rm=TRUE), Copper))
-stage_df <- stage_df %>% mutate(Tryglicerides=ifelse(is.na(Tryglicerides), mean(Tryglicerides, na.rm=TRUE), Tryglicerides))
-stage_df <- stage_df %>% mutate(Platelets=ifelse(is.na(Platelets), mean(Platelets, na.rm=TRUE), Platelets))
-stage_df <- stage_df %>% mutate(Prothrombin=ifelse(is.na(Prothrombin), mean(Prothrombin, na.rm=TRUE), Prothrombin))
-stage_df <- stage_df %>% mutate(Stage=ifelse(is.na(Stage), median(Stage, na.rm=TRUE), Stage))
+stage_df <- stage_df %>% mutate(Ascites = ifelse(is.na(Ascites), "None", Ascites))
+stage_df <- stage_df %>% mutate(Hepatomegaly = ifelse(is.na(Hepatomegaly), "None", Hepatomegaly))
+stage_df <- stage_df %>% mutate(Spiders = ifelse(is.na(Spiders), "None", Spiders))
+stage_df <- stage_df %>% mutate(Cholesterol = ifelse(is.na(Cholesterol), mean(Cholesterol, na.rm = TRUE), Cholesterol))
+stage_df <- stage_df %>% mutate(Alk_Phos = ifelse(is.na(Alk_Phos), mean(Alk_Phos, na.rm = TRUE), Alk_Phos))
+stage_df <- stage_df %>% mutate(SGOT = ifelse(is.na(SGOT), mean(SGOT, na.rm = TRUE), SGOT))
+stage_df <- stage_df %>% mutate(Copper = ifelse(is.na(Copper), mean(Copper, na.rm = TRUE), Copper))
+stage_df <- stage_df %>% mutate(Tryglicerides = ifelse(is.na(Tryglicerides), mean(Tryglicerides, na.rm = TRUE), Tryglicerides)) # nolint: line_length_linter.
+stage_df <- stage_df %>% mutate(Platelets = ifelse(is.na(Platelets), mean(Platelets, na.rm = TRUE), Platelets)) # nolint: line_length_linter.
+stage_df <- stage_df %>% mutate(Prothrombin = ifelse(is.na(Prothrombin), mean(Prothrombin, na.rm = TRUE), Prothrombin)) # nolint: line_length_linter. # nolint
+stage_df <- stage_df %>% mutate(Stage = ifelse(is.na(Stage), median(Stage, na.rm = TRUE), Stage)) # nolint
 ```
 
 ```{r}
@@ -120,35 +125,57 @@ str(stage_df)
 
 ```{r}
 ggplot(stage_df, aes(x = Stage)) +
-  geom_bar(fill = "skyblue", color = "black", alpha = 0.7) 
+  geom_bar(fill = "skyblue", color = "black", alpha = 0.7)
 ```
 
 ```{r}
-#impute_column <- function(data, column_name, impute_value) {
-#  data %>%
-#    mutate({{column_name}} := ifelse(is.na({{column_name}}), impute_value, {{column_name}}))
-#}
-# 
-#impute_mean <- function(data, column_name) {
-#  mean_value <- mean(data[[column_name]], na.rm = TRUE)
-#  impute_column(data, column_name, mean_value)
-#}
-# 
-#impute_median <- function(data, column_name) {
-#  median_value <- median(data[[column_name]], na.rm = TRUE)
-#  impute_column(data, column_name, median_value)
-#}
-# 
-#stage_df <- stage_df %>%
-#  impute_column(Ascites, "None") %>%
-#  impute_column(Hepatomegaly, "None") %>%
-#  impute_column(Spiders, "None") %>%
-#  impute_mean(Cholesterol) %>%
-#  impute_mean(Alk_Phos) %>%
-#  impute_mean(SGOT) %>%
-#  impute_mean(Copper) %>%
-#  impute_mean(Tryglicerides) %>%
-#  impute_mean(Platelets) %>%
-#  impute_mean(Prothrombin) %>%
-#  impute_median(Stage)
+plot_corr <- ggcorr(
+  data = stage_df,
+  low = "steelblue",
+  mid = "white",
+  high = "darkred",
+  label = TRUE,
+  label_alpha = 0,
+  angle = -45,
+  max_size = 10,
+  min_size = 2,
+  size = 3,
+  hjust = 0.75
+)
+plot_corr +
+  theme(text = element_text(size = 8))
+```
+
+## Models
+
+### Data split
+
+```{r}
+# TODO: Use df clean
+stage_df$Status <- as.numeric(df$Status)
+
+set.seed(123)
+train_index <- sample(1:nrow(stage_df), 0.7 * nrow(stage_df))
+
+train_data <- df[train_index, ]
+
+test_data <- df[-train_index, ]
+
+nrow(train_data)
+nrow(test_data)
+```
+
+Modelos a emplear:
+
+- Perceptron / lm <-
+- Random dec. tree <-
+- nearest neighbours <-
+- SVM <-
+- Logistic re
+
+Objetivos:
+- survival state of patients with liver cirrhosis
+
+```{r}
+library(mlpack)
 ```
