@@ -28,7 +28,7 @@ library(dplyr)
 library(gridExtra)
 library(ggcorrplot)
 library(mlpack) # Used to create the different models used in this assignment
-library(caret)  # Used to obtain all the metrics of the different models
+library(caret) # Used to obtain all the metrics of the different models
 ```
 
 # Data
@@ -272,7 +272,7 @@ for (i in seq_along(percep_runs)) {
   s_ <- percep_runs[[i]][[1]]
   x_ <- percep_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     perceptron,
@@ -303,7 +303,7 @@ for (i in seq_along(randft_runs)) {
   s_ <- randft_runs[[i]][[1]]
   x_ <- randft_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     random_forest,
@@ -334,7 +334,7 @@ for (i in seq_along(svm_runs)) {
   s_ <- svm_runs[[i]][[1]]
   x_ <- svm_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     linear_svm,
@@ -365,7 +365,7 @@ for (i in seq_along(soft_runs)) {
   s_ <- soft_runs[[i]][[1]]
   x_ <- soft_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     softmax_regression,
@@ -397,7 +397,7 @@ for (i in seq_along(nbc_runs)) {
   s_ <- nbc_runs[[i]][[1]]
   x_ <- nbc_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     nbc,
@@ -428,7 +428,7 @@ for (i in seq_along(dec_tree_runs)) {
   s_ <- dec_tree_runs[[i]][[1]]
   x_ <- dec_tree_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     decision_tree,
@@ -459,7 +459,7 @@ for (i in seq_along(adaboost_runs)) {
   s_ <- adaboost_runs[[i]][[1]]
   x_ <- adaboost_runs[[i]][[2]]
 
-  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.2, seed = s_)
+  res <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
 
   model_res <- run_classifier(
     adaboost,
@@ -558,3 +558,7 @@ ggplot(accuracy_df, aes(x = Model, y = Accuracy, fill = Model)) +
   labs(title = "Grouped Boxplot of Accuracy", y = "Accuracy") +
   theme_minimal()
 ```
+
+As observed, the accuracy of the models varies significantly between different models, as expected, beacuse each model has a different perspective and treatment of the data and are trained on a random subset of the cleaned dataset. It's noteworthy that the Naive Bayes model has as the best-performing one, with a slight lead in accuracy. Additionally, the accuracy values remain relatively constant, unlike the Softmax model, which shows significant instability. The Adaptive Boosting and Random Forest models stands out with one of the highest accuracies and denote a remarkable consistency.
+
+To conclude, it's important to emphasize that determining the best model goes beyond the accuracy score alone. The choice depends on the model's intended purpose, and it is essential to consider whether a more stable model is preferable or if one with higher variability and a better score is more suitable.
