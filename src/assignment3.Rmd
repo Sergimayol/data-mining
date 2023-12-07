@@ -249,6 +249,18 @@ run_classifier <- function(classifier, train_data, train_labels, test_data, test
 
 ## Models
 
+Once the data is prepared, it's ready to be used in the models. In this section, each model is given three random subsets of the cleaned dataset to classify as one of the class labels. The models are as follows:
+
+- Perceptron
+- Random Forest
+- Linear SVM
+- Softmax Regression
+- Naive Bayes Classifier
+- Decision Tree
+- Adaptive Boosting
+
+Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
+
 ### Perceptron
 
 ```{r}
@@ -281,6 +293,7 @@ print(over_percep_df)
 ```
 
 ### Random Forest
+
 ```{r}
 randft_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
@@ -311,6 +324,7 @@ print(over_randft_df)
 ```
 
 ### Linear SVM
+
 ```{r}
 svm_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
@@ -340,7 +354,7 @@ over_svm_df <- as.data.frame(t(over_svm_results))
 print(over_svm_df)
 ```
 
-## Softmax Regression
+### Softmax Regression
 
 ```{r}
 soft_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
@@ -372,7 +386,8 @@ over_soft_df <- as.data.frame(t(over_soft_results))
 print(over_soft_df)
 ```
 
-## Naive Bayes Classifier
+### Naive Bayes Classifier
+
 ```{r}
 nbc_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
 
@@ -402,7 +417,7 @@ over_nbc_df <- as.data.frame(t(over_nbc_results))
 print(over_nbc_df)
 ```
 
-## Decision Tree
+### Decision Tree
 
 ```{r}
 dec_tree_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
@@ -433,7 +448,7 @@ over_tree_df <- as.data.frame(t(over_tree_results))
 print(over_tree_df)
 ```
 
-## Adaptive Boosting
+### Adaptive Boosting
 
 ```{r}
 adaboost_runs <- list(list(1234, stage_df), list(4567, stage_df), list(2805, stage_df))
@@ -465,6 +480,8 @@ print(over_ada_df)
 ```
 
 ## Results 
+
+In this section, we will display and discuss the results obtained from the models.
 
 Function to get the best model out of the list of results
 
