@@ -1,0 +1,8 @@
+---
+title: "Assignment 4 - Clustering models for Penguindata dataset"
+author: "Sergi Mayol and Toni Garri"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Introduction
