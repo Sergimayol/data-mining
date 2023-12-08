@@ -16,7 +16,7 @@ library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(ggcorrplot)
-library(mlpack) # Used to create the different models used in this assignment
+#library(mlpack) # Used to create the different models used in this assignment
 library(caret) # Used to obtain all the metrics of the different models
 ```
 
@@ -115,7 +115,27 @@ Once the data is prepared, it's ready to be used in the models. In this section,
 
 Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
 
+#### K-Means Clustering
 
+```{r}
+penguins <- na.omit(df)
+penguins$bill_length_mm <- as.numeric(penguins$bill_length_mm)
+penguins$bill_depth_mm <- as.numeric(penguins$bill_depth_mm)
+penguins$flipper_length_mm <- as.numeric(penguins$flipper_length_mm)
+penguins$body_mass_g <- as.numeric(penguins$body_mass_g)
+penguins$year <- as.factor(penguins$year)
+penguins$sex <- as.factor(penguins$sex)
+features <- penguins[, c("bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
+scaled_features <- scale(features)
+k <- 3
+kmeans_result <- kmeans(scaled_features, centers = k)
+penguins$cluster <- kmeans_result$cluster
+
+ggplot(penguins, aes(x = bill_length_mm, y = flipper_length_mm, color = factor(cluster))) +
+  geom_point(size = 3) +
+  labs(title = "K-Means Clustering of Penguins", x = "Bill Length (mm)", y = "Flipper Length (mm)", color = "Cluster") +
+  theme_minimal()
+```
 
 
 
