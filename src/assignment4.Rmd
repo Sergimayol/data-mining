@@ -5,4 +5,117 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-# Introduction
+## Introduction
+### Libraries
+
+For this assignment, the following libraries are used:
+
+```{r}
+library(GGally)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(ggcorrplot)
+library(mlpack) # Used to create the different models used in this assignment
+library(caret) # Used to obtain all the metrics of the different models
+```
+
+### Data
+
+```{r dataset_load}
+dataset <- read.csv("../datasets/penguindata.csv")
+```
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+str(dataset)
+```
+
+```{r}
+df <- dataset
+```
+
+This function makes a split of the data, returning the train and test data and also the train and test labels given a dataset, the labels, the size of the split and the seed that would be used.
+
+```{r}
+train_test_split <- function(x_df, y_labs, test_size, seed) {
+  set.seed(seed)
+  index <- sample(nrow(x_df), (1 - test_size) * nrow(x_df))
+
+  train_data <- x_df[index, ]
+  train_labels <- as.matrix(y_labs[index])
+
+  test_data <- x_df[-index, ]
+  test_labels <- as.matrix(y_labs[-index])
+
+  return(list(
+    train_data = train_data,
+    train_labels = train_labels,
+    test_data = test_data,
+    test_labels = test_labels
+  ))
+}
+```
+ 
+## Models
+
+Function used to create and train the different models.
+
+!!!Maybe we need to change this function a bit for the clustering
+```{r run_model function}
+run_model <- function(model_func, train_data, train_labels, test_data, test_labels) {
+  model <- model_func(training = train_data, labels = train_labels)
+  model <- model$output_model
+
+  output <- model_func(input_model = model, test = test_data)
+  predictions <- output$predictions
+
+  res <- confusionMatrix(
+    factor(predictions, levels = c(1, 2, 3)),
+    factor(test_labels)
+  )
+
+  return(res)
+}
+```
+
+```{r multiple_model_runner function}
+mmr <- function(runs) {
+  results <- vector("list", length = length(runs))
+  
+  for (i in seq_along(runs)) {
+    s_ <- runs[[i]][[1]]
+    x_ <- runs[[i]][[2]]
+  
+    d <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
+  
+    results[[i]] <- run_classifier(
+      perceptron,
+      d$train_data,
+      d$train_labels,
+      d$test_data,
+      d$test_labels
+    )
+  }
+  
+  return(results)
+}
+```
+
+Once the data is prepared, it's ready to be used in the models. In this section, each model is given three random subsets of the cleaned dataset to classify as one of the class labels. The models are as follows:
+
+- K-Means Clustering
+- Gaussian Mixture Model clustering
+- Mean Shift Clustering
+- Hoeffding trees clustering
+- DBSCAN clustering
+
+Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
+
+
+
+
+
