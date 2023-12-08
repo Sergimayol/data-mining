@@ -137,5 +137,15 @@ ggplot(penguins, aes(x = bill_length_mm, y = flipper_length_mm, color = factor(c
   theme_minimal()
 ```
 
+```{r}
+# Ejemplo de clustering jerárquico
+hclust_result <- hclust(dist(scaled_features))
+# Supongamos que 'hclust_result' es el resultado de tu clustering jerárquico
+plot(hclust_result, hang = -1, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
+
+# Resaltar clusters (por ejemplo, cortar el dendrograma en k clusters)
+k_clusters <- 3  # Ajusta según tu elección de clusters
+rect.hclust(hclust_result, k_clusters, border = "red")
+```
 
 
