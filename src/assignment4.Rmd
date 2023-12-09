@@ -10,14 +10,17 @@ output: html_document
 
 For this assignment, the following libraries are used:
 
-```{r}
+```{r library_load}
 library(GGally)
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(ggcorrplot)
-#library(mlpack) # Used to create the different models used in this assignment
-library(caret) # Used to obtain all the metrics of the different models
+library(dendextend)
+library(dbscan)
+library(factoextra)
+library(mclust)
+library(cluster)
 ```
 
 ### Data
@@ -38,72 +41,29 @@ str(dataset)
 df <- dataset
 ```
 
-This function makes a split of the data, returning the train and test data and also the train and test labels given a dataset, the labels, the size of the split and the seed that would be used.
+```{r}
+df <- subset(df, select = -X)
+df <- df %>% mutate(bill_length_mm = ifelse(is.na(bill_length_mm), mean(bill_length_mm, na.rm = TRUE), bill_length_mm))
+df <- df %>% mutate(bill_depth_mm = ifelse(is.na(bill_depth_mm), mean(bill_depth_mm, na.rm = TRUE), bill_depth_mm))
+df <- df %>% mutate(flipper_length_mm = ifelse(is.na(flipper_length_mm), mean(flipper_length_mm, na.rm = TRUE), flipper_length_mm))
+df <- df %>% mutate(body_mass_g = ifelse(is.na(body_mass_g), mean(body_mass_g, na.rm = TRUE), body_mass_g))
+df <- df %>% mutate(sex = ifelse(is.na(sex), median(sex, na.rm = TRUE), sex))
+df <- df %>% mutate(year = ifelse(is.na(year), median(year, na.rm = TRUE), year))
+summary(df)
+```
 
 ```{r}
-train_test_split <- function(x_df, y_labs, test_size, seed) {
-  set.seed(seed)
-  index <- sample(nrow(x_df), (1 - test_size) * nrow(x_df))
+# sex 1,2
+# year 1,2,3
+df <- df %>% mutate(sex = ifelse(sex == "male", 1, 2))
+# [0,1]
+df$year <- (df$year - min(df$year)) / (max(df$year) - min(df$year))
 
-  train_data <- x_df[index, ]
-  train_labels <- as.matrix(y_labs[index])
-
-  test_data <- x_df[-index, ]
-  test_labels <- as.matrix(y_labs[-index])
-
-  return(list(
-    train_data = train_data,
-    train_labels = train_labels,
-    test_data = test_data,
-    test_labels = test_labels
-  ))
-}
+summary(df)
+str(df)
 ```
- 
+
 ## Models
-
-Function used to create and train the different models.
-
-!!!Maybe we need to change this function a bit for the clustering
-```{r run_model function}
-run_model <- function(model_func, train_data, train_labels, test_data, test_labels) {
-  model <- model_func(training = train_data, labels = train_labels)
-  model <- model$output_model
-
-  output <- model_func(input_model = model, test = test_data)
-  predictions <- output$predictions
-
-  res <- confusionMatrix(
-    factor(predictions, levels = c(1, 2, 3)),
-    factor(test_labels)
-  )
-
-  return(res)
-}
-```
-
-```{r multiple_model_runner function}
-mmr <- function(runs) {
-  results <- vector("list", length = length(runs))
-  
-  for (i in seq_along(runs)) {
-    s_ <- runs[[i]][[1]]
-    x_ <- runs[[i]][[2]]
-  
-    d <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
-  
-    results[[i]] <- run_classifier(
-      perceptron,
-      d$train_data,
-      d$train_labels,
-      d$test_data,
-      d$test_labels
-    )
-  }
-  
-  return(results)
-}
-```
 
 Once the data is prepared, it's ready to be used in the models. In this section, each model is given three random subsets of the cleaned dataset to classify as one of the class labels. The models are as follows:
 
@@ -118,34 +78,142 @@ Each run of the model will output the confusion matrix and the evaluation of eac
 #### K-Means Clustering
 
 ```{r}
-penguins <- na.omit(df)
+penguins <- df
 penguins$bill_length_mm <- as.numeric(penguins$bill_length_mm)
 penguins$bill_depth_mm <- as.numeric(penguins$bill_depth_mm)
 penguins$flipper_length_mm <- as.numeric(penguins$flipper_length_mm)
 penguins$body_mass_g <- as.numeric(penguins$body_mass_g)
-penguins$year <- as.factor(penguins$year)
-penguins$sex <- as.factor(penguins$sex)
-features <- penguins[, c("bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
-scaled_features <- scale(features)
-k <- 3
-kmeans_result <- kmeans(scaled_features, centers = k)
-penguins$cluster <- kmeans_result$cluster
 
-ggplot(penguins, aes(x = bill_length_mm, y = flipper_length_mm, color = factor(cluster))) +
-  geom_point(size = 3) +
-  labs(title = "K-Means Clustering of Penguins", x = "Bill Length (mm)", y = "Flipper Length (mm)", color = "Cluster") +
-  theme_minimal()
+summary(penguins)
+str(penguins)
 ```
 
 ```{r}
-# Ejemplo de clustering jerárquico
-hclust_result <- hclust(dist(scaled_features))
-# Supongamos que 'hclust_result' es el resultado de tu clustering jerárquico
-plot(hclust_result, hang = -1, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
-
-# Resaltar clusters (por ejemplo, cortar el dendrograma en k clusters)
-k_clusters <- 3  # Ajusta según tu elección de clusters
-rect.hclust(hclust_result, k_clusters, border = "red")
+fviz_nbclust(
+  x = penguins, FUNcluster = pam, method = "wss", k.max = 15,
+  diss = dist(penguins, method = "manhattan")
+)
 ```
 
+```{r}
+matriz_distancias <- dist(x = penguins, method = "euclidean")
 
+hc_euclidea_completo <- hclust(d = matriz_distancias, method = "complete")
+hc_euclidea_single <- hclust(d = matriz_distancias, method = "single")
+hc_euclidea_average <- hclust(d = matriz_distancias, method = "average")
+
+plot(
+  x = hc_euclidea_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
+  main = "Distancia euclídea, Linkage complete"
+)
+plot(
+  x = hc_euclidea_single, cex = 0.6, xlab = "", ylab = "", sub = "",
+  main = "Distancia euclídea, Linkage single"
+)
+plot(
+  x = hc_euclidea_average, cex = 0.6, xlab = "", ylab = "", sub = "",
+  main = "Distancia euclídea, Linkage average"
+)
+```
+
+```{r}
+features <- penguins[, c("sex", "year", "bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
+scaled_features <- scale(features)
+k <- 2
+kmeans_result <- kmeans(scaled_features, centers = k)
+penguins$cluster <- kmeans_result$cluster
+
+plot(penguins[, c(1:6)], col = kmeans_result$cluster)
+title("Pair Plot: Scatter Plots of Numeric Variables by Cluster")
+```
+
+```{r}
+fviz_cluster(
+  object = kmeans_result, data = penguins, show.clust.cent = TRUE,
+  ellipse.type = "euclid", star.plot = TRUE, repel = TRUE
+) +
+  labs(title = "Resultados clustering K-means") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+```{r}
+hclust_result <- hclust(dist(scaled_features))
+
+dend_colored <- color_branches(hclust_result, k = k)
+
+labels(dend_colored) <- NULL
+
+plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
+
+k_clusters <- k
+rect.hclust(hclust_result, k_clusters, border = "black")
+```
+
+```{r}
+k <- 4
+kmeans_result <- kmeans(scaled_features, centers = k)
+penguins$cluster <- kmeans_result$cluster
+
+plot(penguins[, c(1:6)], col = kmeans_result$cluster)
+title("Pair Plot: Scatter Plots of Numeric Variables by Cluster")
+```
+
+```{r}
+fviz_cluster(
+  object = kmeans_result, data = penguins, show.clust.cent = TRUE,
+  ellipse.type = "euclid", star.plot = TRUE, repel = TRUE
+) +
+  labs(title = "Resultados clustering K-means") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+```{r}
+hclust_result <- hclust(dist(scaled_features))
+
+dend_colored <- color_branches(hclust_result, k = k)
+
+labels(dend_colored) <- NULL
+
+plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
+
+k_clusters <- k
+rect.hclust(hclust_result, k_clusters, border = "black")
+```
+
+#### DBSCAN Clustering
+
+```{r}
+dbscan_result <- dbscan(scaled_features, eps = 0.5, MinPts = 5)
+fviz_cluster(dbscan_result, data = scaled_features, main = "DBSCAN Clustering")
+```
+
+#### Gaussian Mixture Model Clustering
+
+```{r}
+gmm_result <- Mclust(scaled_features)
+plot(gmm_result, what = "classification", main = "GMM Clustering")
+```
+
+#### AGNES Clustering
+
+```{r}
+agnes_result <- agnes(scaled_features)
+
+fviz_dend(agnes_result,
+  main = "AGNES Clustering Dendrogram",
+  show_labels = FALSE,
+  palette = "jama",
+  k = 5,
+  color_labels_by_k = TRUE,
+  ggtheme = theme_classic()
+)
+```
+
+#### OPTICS Clustering
+
+```{r}
+# optics_result <- optics(scaled_features, minPts = 5)
+# plot(optics_result, main = "OPTICS Clustering")
+```
