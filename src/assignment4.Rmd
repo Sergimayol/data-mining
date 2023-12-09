@@ -6,6 +6,12 @@ output: html_document
 ---
 
 ## Introduction
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
 ### Libraries
 
 For this assignment, the following libraries are used:
@@ -20,6 +26,9 @@ library(dendextend)
 library(dbscan)
 library(factoextra)
 library(mclust)
+library(cluster)
+library(igraph)
+library(clValid)
 library(cluster)
 ```
 
@@ -75,6 +84,10 @@ Once the data is prepared, it's ready to be used in the models. In this section,
 
 Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
 
+```{r}
+set.seed(2828)
+```
+
 #### K-Means Clustering
 
 ```{r}
@@ -102,24 +115,27 @@ hc_euclidea_completo <- hclust(d = matriz_distancias, method = "complete")
 hc_euclidea_single <- hclust(d = matriz_distancias, method = "single")
 hc_euclidea_average <- hclust(d = matriz_distancias, method = "average")
 
-plot(
-  x = hc_euclidea_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
-  main = "Distancia euclídea, Linkage complete"
-)
-plot(
-  x = hc_euclidea_single, cex = 0.6, xlab = "", ylab = "", sub = "",
-  main = "Distancia euclídea, Linkage single"
-)
-plot(
-  x = hc_euclidea_average, cex = 0.6, xlab = "", ylab = "", sub = "",
-  main = "Distancia euclídea, Linkage average"
+grid.arrange(
+  plot(
+    x = hc_euclidea_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage complete"
+  ),
+  plot(
+    x = hc_euclidea_single, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage single"
+  ),
+  plot(
+    x = hc_euclidea_average, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage average"
+  ),
+  nrow = 2
 )
 ```
 
 ```{r}
 features <- penguins[, c("sex", "year", "bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
 scaled_features <- scale(features)
-k <- 2
+k <- 3
 kmeans_result <- kmeans(scaled_features, centers = k)
 penguins$cluster <- kmeans_result$cluster
 
@@ -145,9 +161,30 @@ dend_colored <- color_branches(hclust_result, k = k)
 labels(dend_colored) <- NULL
 
 plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
+rect.hclust(hclust_result, k, border = "black")
+```
 
-k_clusters <- k
-rect.hclust(hclust_result, k_clusters, border = "black")
+```{r}
+grid.arrange(
+  fviz_dend(
+    x = hclust_result,
+    k = k,
+    color_labels_by_k = TRUE,
+    cex = 0.8,
+    type = "phylogenic",
+    repel = TRUE,
+    xlab = "",
+    ylab = ""
+  ),
+  fviz_dend(
+    x = hclust_result,
+    k = k,
+    color_labels_by_k = TRUE,
+    cex = 0.5,
+    type = "circular",
+  ),
+  nrow = 1
+)
 ```
 
 ```{r}
@@ -169,6 +206,38 @@ fviz_cluster(
   theme(legend.position = "none")
 ```
 
+```{r plot_fviz_cluster function}
+plot_fviz_cluster <- function(features, dt, cents) {
+  plot <- fviz_cluster(
+    object = kmeans(features, centers = cents),
+    data = dt,
+    show.clust.cent = FALSE,
+    ellipse.type = "euclid", star.plot = TRUE, repel = TRUE,
+    show.dist = FALSE,
+    xlab = "",
+    ylab = ""
+  ) +
+    labs(title = paste("K-means ", cents)) +
+    theme_bw() +
+    theme(legend.position = "none")
+
+  return(plot)
+}
+```
+
+```{r self-similarity plots}
+grid.arrange(
+  plot_fviz_cluster(scaled_features, penguins, 5),
+  plot_fviz_cluster(scaled_features, penguins, 6),
+  ncol = 2
+)
+grid.arrange(
+  plot_fviz_cluster(scaled_features, penguins, 7),
+  plot_fviz_cluster(scaled_features, penguins, 8),
+  ncol = 2
+)
+```
+
 ```{r}
 hclust_result <- hclust(dist(scaled_features))
 
@@ -178,15 +247,45 @@ labels(dend_colored) <- NULL
 
 plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
 
-k_clusters <- k
-rect.hclust(hclust_result, k_clusters, border = "black")
+rect.hclust(hclust_result, k, border = "black")
+```
+
+```{r}
+grid.arrange(
+  fviz_dend(
+    x = hclust_result,
+    k = k,
+    color_labels_by_k = TRUE,
+    cex = 0.8,
+    type = "phylogenic",
+    repel = TRUE,
+    xlab = "",
+    ylab = ""
+  ),
+  fviz_dend(
+    x = hclust_result,
+    k = k,
+    color_labels_by_k = TRUE,
+    cex = 0.5,
+    type = "circular",
+    show_labels = FALSE
+  ),
+  nrow = 1
+)
 ```
 
 #### DBSCAN Clustering
 
 ```{r}
 dbscan_result <- dbscan(scaled_features, eps = 0.5, MinPts = 5)
-fviz_cluster(dbscan_result, data = scaled_features, main = "DBSCAN Clustering")
+fviz_cluster(
+  object = dbscan_result, data = scaled_features, stand = FALSE,
+  geom = "point", ellipse = TRUE, show.clust.cent = TRUE,
+  pallete = "jco",
+  main = "DBSCAN Clustering"
+) +
+  theme_bw() +
+  theme(legend.position = "bottom")
 ```
 
 #### Gaussian Mixture Model Clustering
@@ -214,6 +313,30 @@ fviz_dend(agnes_result,
 #### OPTICS Clustering
 
 ```{r}
-# optics_result <- optics(scaled_features, minPts = 5)
-# plot(optics_result, main = "OPTICS Clustering")
+optics_result <- optics(scaled_features, minPts = 5)
+plot(optics_result, main = "OPTICS Clustering")
+```
+
+#### PAM Clustering
+
+```{r PAM Clustering k = 3}
+pam_result <- pam(dist(scaled_features, method = "euclidean"), 3)
+clusplot(pam_result)
+```
+
+```{r PAM Clustering k = 4}
+pam_result <- pam(dist(scaled_features, method = "euclidean"), 4)
+clusplot(pam_result)
+```
+
+### Results
+
+```{r}
+comparacion <- clValid(
+  obj        = scaled_features,
+  nClust     = 2:6,
+  clMethods  = c("hierarchical", "kmeans", "pam", "agnes"),
+  validation = c("stability", "internal")
+)
+summary(comparacion)
 ```
