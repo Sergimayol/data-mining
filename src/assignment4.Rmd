@@ -7,12 +7,18 @@ output: html_document
 
 ## Introduction
 
+The dataset includes measurements taken for penguins in Palmer Archipelago.
+
 ```{r setup, include=FALSE} 
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
-### Libraries
+## Study Problem Statement
+
+The objective of this assignment is to see how penguins can be grouped.
+
+## Libraries
 
 For this assignment, the following libraries are used:
 
@@ -32,26 +38,48 @@ library(clValid)
 library(cluster)
 ```
 
-### Data
+# Data
+
+This assignment uses the data frame Cirrhosis dataset that can be found in the DATASET folder.
 
 ```{r dataset_load}
 dataset <- read.csv("../datasets/penguindata.csv")
 ```
 
+## Data preparation
+
+Let's study the dataset to see which data will be useful to our study. First of all let's transform to factor the variable `sex`, a character, to see in the summary all the NA's.
+
 ```{r}
-summary(dataset)
+temp_dataset <- dataset
+temp_dataset$sex <- as.factor(temp_dataset$sex)
+summary(temp_dataset)
 ```
+
+As we can see there are not a lot of missing values, we could simply remove this data, but in our case let's transform the data to something more useful.
+
+Another important thing to do previous to deal with the NA's is seeing the type of the data:
 
 ```{r}
 str(dataset)
 ```
 
+Once we have taken a look to the data we can simplify the name of the dataset to `df` to also keep the original without modifications.
+
 ```{r}
 df <- dataset
 ```
 
+We can remove the X from the dataset because it's a value that is used only to index the data and has no other important relation with the rest.
+
 ```{r}
 df <- subset(df, select = -X)
+```
+
+And now let's clean the data. In this case the variable `sex` it's a chr data we change the NA for the median, when is a numeric we use the mean of that variable except for Year that we use the median because it does not make sense to have half a year in which the study was taken.
+
+```{r}
+
 df <- df %>% mutate(bill_length_mm = ifelse(is.na(bill_length_mm), mean(bill_length_mm, na.rm = TRUE), bill_length_mm))
 df <- df %>% mutate(bill_depth_mm = ifelse(is.na(bill_depth_mm), mean(bill_depth_mm, na.rm = TRUE), bill_depth_mm))
 df <- df %>% mutate(flipper_length_mm = ifelse(is.na(flipper_length_mm), mean(flipper_length_mm, na.rm = TRUE), flipper_length_mm))
@@ -61,12 +89,11 @@ df <- df %>% mutate(year = ifelse(is.na(year), median(year, na.rm = TRUE), year)
 summary(df)
 ```
 
+Now let's change `sex` and `year` to a numeric and to a smaller numbers respectively to have the possibility to use them in the clustering.
+
 ```{r}
-# sex 1,2
-# year 1,2,3
-df <- df %>% mutate(sex = ifelse(sex == "male", 1, 2))
-# [0,1]
-df$year <- (df$year - min(df$year)) / (max(df$year) - min(df$year))
+df$sex <- as.numeric(as.factor(df$sex))
+df$year <- as.numeric(as.factor(df$year))
 
 summary(df)
 str(df)
@@ -74,13 +101,21 @@ str(df)
 
 ## Models
 
-Once the data is prepared, it's ready to be used in the models. In this section, each model is given three random subsets of the cleaned dataset to classify as one of the class labels. The models are as follows:
+Once the data is prepared, it's ready to be used in the models. In this case we have:
 
-- K-Means Clustering
-- Gaussian Mixture Model clustering
-- Mean Shift Clustering
-- Hoeffding trees clustering
-- DBSCAN clustering
+- Hierarchical:
+  - AGNES (Agglomerative Nesting)
+  
+- Partitional:
+  - K-Means Clustering
+  - Gaussian Mixture Model
+  - PAM
+  
+- Density-Based
+  - DBSCAN
+  
+- Ordering-Based
+  - OPTICS (Ordering Point to Identify the Clustering Structure)
 
 Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
 
@@ -88,7 +123,7 @@ Each run of the model will output the confusion matrix and the evaluation of eac
 set.seed(2828)
 ```
 
-#### K-Means Clustering
+Before jumping to the models it is important to transform all the data to be the same type, in this case numeric.
 
 ```{r}
 penguins <- df
@@ -99,6 +134,13 @@ penguins$body_mass_g <- as.numeric(penguins$body_mass_g)
 
 summary(penguins)
 str(penguins)
+```
+
+Also is important to scale the features that will be used to make a good clustering.
+
+```{r}
+features <- penguins[, c("sex", "year", "bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
+scaled_features <- scale(features)
 ```
 
 ```{r}
@@ -132,9 +174,28 @@ grid.arrange(
 )
 ```
 
+### Hierarchical
+
+#### AGNES Clustering
+
 ```{r}
-features <- penguins[, c("sex", "year", "bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
-scaled_features <- scale(features)
+agnes_result <- agnes(scaled_features)
+
+fviz_dend(agnes_result,
+  main = "AGNES Clustering Dendrogram",
+  show_labels = FALSE,
+  palette = "jama",
+  k = 5,
+  color_labels_by_k = TRUE,
+  ggtheme = theme_classic()
+)
+```
+
+### Partitional
+
+##### K-Means Clustering
+
+```{r}
 k <- 3
 kmeans_result <- kmeans(scaled_features, centers = k)
 penguins$cluster <- kmeans_result$cluster
@@ -274,6 +335,27 @@ grid.arrange(
 )
 ```
 
+#### Gaussian Mixture Model Clustering
+
+```{r}
+gmm_result <- Mclust(scaled_features)
+plot(gmm_result, what = "classification", main = "GMM Clustering")
+```
+
+#### PAM Clustering
+
+```{r PAM Clustering k 3}
+pam_result <- pam(dist(scaled_features, method = "euclidean"), 3)
+clusplot(pam_result)
+```
+
+```{r PAM Clustering k 4}
+pam_result <- pam(dist(scaled_features, method = "euclidean"), 4)
+clusplot(pam_result)
+```
+
+### Density-Based
+
 #### DBSCAN Clustering
 
 ```{r}
@@ -288,45 +370,13 @@ fviz_cluster(
   theme(legend.position = "bottom")
 ```
 
-#### Gaussian Mixture Model Clustering
-
-```{r}
-gmm_result <- Mclust(scaled_features)
-plot(gmm_result, what = "classification", main = "GMM Clustering")
-```
-
-#### AGNES Clustering
-
-```{r}
-agnes_result <- agnes(scaled_features)
-
-fviz_dend(agnes_result,
-  main = "AGNES Clustering Dendrogram",
-  show_labels = FALSE,
-  palette = "jama",
-  k = 5,
-  color_labels_by_k = TRUE,
-  ggtheme = theme_classic()
-)
-```
+### Ordering-Based
 
 #### OPTICS Clustering
 
 ```{r}
 optics_result <- optics(scaled_features, minPts = 5)
 plot(optics_result, main = "OPTICS Clustering")
-```
-
-#### PAM Clustering
-
-```{r PAM Clustering k = 3}
-pam_result <- pam(dist(scaled_features, method = "euclidean"), 3)
-clusplot(pam_result)
-```
-
-```{r PAM Clustering k = 4}
-pam_result <- pam(dist(scaled_features, method = "euclidean"), 4)
-clusplot(pam_result)
 ```
 
 ### Results
