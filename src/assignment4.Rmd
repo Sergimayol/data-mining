@@ -359,7 +359,9 @@ clusplot(pam_result)
 #### DBSCAN Clustering
 
 ```{r}
-dbscan_result <- dbscan(scaled_features, eps = 0.5, MinPts = 5)
+dbscan_result <- dbscan(scaled_features, 
+                        eps = 1.5, 
+                        MinPts = 4)
 fviz_cluster(
   object = dbscan_result, data = scaled_features, stand = FALSE,
   geom = "point", ellipse = TRUE, show.clust.cent = TRUE,
@@ -375,7 +377,7 @@ fviz_cluster(
 #### OPTICS Clustering
 
 ```{r}
-optics_result <- optics(scaled_features, minPts = 5)
+optics_result <- optics(scaled_features, minPts = 4)
 plot(optics_result, main = "OPTICS Clustering")
 ```
 
