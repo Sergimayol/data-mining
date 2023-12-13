@@ -6,136 +6,435 @@ output: html_document
 ---
 
 ## Introduction
-### Libraries
+
+The dataset includes measurements taken for penguins in Palmer Archipelago.
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+set.seed(4563)
+```
+
+## Study Problem Statement
+
+The objective of this assignment is to see how penguins can be grouped.
+
+## Libraries
 
 For this assignment, the following libraries are used:
 
-```{r}
+```{r library_load}
 library(GGally)
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
-library(ggcorrplot)
-#library(mlpack) # Used to create the different models used in this assignment
-library(caret) # Used to obtain all the metrics of the different models
+library(dendextend)
+library(dbscan)
+library(factoextra)
+library(mclust)
+library(cluster)
+library(igraph)
 ```
 
-### Data
+# Data
+
+This assignment uses the data frame Cirrhosis dataset that can be found in the DATASET folder.
 
 ```{r dataset_load}
 dataset <- read.csv("../datasets/penguindata.csv")
 ```
 
+## Data preparation
+
+Let's study the dataset to see which data will be useful to our study. First of all let's transform to factor the variable `sex`, a character, to see in the summary all the NA's.
+
 ```{r}
-summary(dataset)
+temp_dataset <- dataset
+temp_dataset$sex <- as.factor(temp_dataset$sex)
+summary(temp_dataset)
 ```
+
+As we can see there are not a lot of missing values, we could simply remove this data, but in our case let's transform the data to something more useful.
+
+Another important thing to do previous to deal with the NA's is seeing the type of the data:
 
 ```{r}
 str(dataset)
 ```
 
+Once we have taken a look to the data we can simplify the name of the dataset to `df` to also keep the original without modifications.
+
 ```{r}
 df <- dataset
 ```
 
-This function makes a split of the data, returning the train and test data and also the train and test labels given a dataset, the labels, the size of the split and the seed that would be used.
+We can remove the X from the dataset because it's a value that is used only to index the data and has no other important relation with the rest.
 
 ```{r}
-train_test_split <- function(x_df, y_labs, test_size, seed) {
-  set.seed(seed)
-  index <- sample(nrow(x_df), (1 - test_size) * nrow(x_df))
-
-  train_data <- x_df[index, ]
-  train_labels <- as.matrix(y_labs[index])
-
-  test_data <- x_df[-index, ]
-  test_labels <- as.matrix(y_labs[-index])
-
-  return(list(
-    train_data = train_data,
-    train_labels = train_labels,
-    test_data = test_data,
-    test_labels = test_labels
-  ))
-}
+df <- subset(df, select = -X)
 ```
- 
+
+And now let's clean the data. In this case the variable `sex` it's a chr data we change the NA for the median, when is a numeric we use the mean of that variable except for Year that we use the median because it does not make sense to have half a year in which the study was taken.
+
+```{r}
+df <- df %>% mutate(bill_length_mm = ifelse(is.na(bill_length_mm), mean(bill_length_mm, na.rm = TRUE), bill_length_mm))
+df <- df %>% mutate(bill_depth_mm = ifelse(is.na(bill_depth_mm), mean(bill_depth_mm, na.rm = TRUE), bill_depth_mm))
+df <- df %>% mutate(flipper_length_mm = ifelse(is.na(flipper_length_mm), mean(flipper_length_mm, na.rm = TRUE), flipper_length_mm))
+df <- df %>% mutate(body_mass_g = ifelse(is.na(body_mass_g), mean(body_mass_g, na.rm = TRUE), body_mass_g))
+df <- df %>% mutate(sex = ifelse(is.na(sex), median(sex, na.rm = TRUE), sex))
+df <- df %>% mutate(year = ifelse(is.na(year), median(year, na.rm = TRUE), year))
+summary(df)
+```
+
+Now let's change `sex` and `year` to a numeric and to a smaller numbers respectively to have the possibility to use them in the clustering.
+
+```{r}
+df$sex <- as.numeric(as.factor(df$sex))
+df$year <- as.numeric(as.factor(df$year))
+
+summary(df)
+str(df)
+```
+
 ## Models
 
-Function used to create and train the different models.
+Once the data is prepared, it's ready to be used in the models. In this case we have:
 
-!!!Maybe we need to change this function a bit for the clustering
-```{r run_model function}
-run_model <- function(model_func, train_data, train_labels, test_data, test_labels) {
-  model <- model_func(training = train_data, labels = train_labels)
-  model <- model$output_model
-
-  output <- model_func(input_model = model, test = test_data)
-  predictions <- output$predictions
-
-  res <- confusionMatrix(
-    factor(predictions, levels = c(1, 2, 3)),
-    factor(test_labels)
-  )
-
-  return(res)
-}
-```
-
-```{r multiple_model_runner function}
-mmr <- function(runs) {
-  results <- vector("list", length = length(runs))
+- Hierarchical:
+  - AGNES (Agglomerative Nesting)
   
-  for (i in seq_along(runs)) {
-    s_ <- runs[[i]][[1]]
-    x_ <- runs[[i]][[2]]
+- Partitional:
+  - K-Means Clustering
+  - Gaussian Mixture Model
+  - PAM
   
-    d <- train_test_split(x_df = x_, y_labs = labels, test_size = 0.3, seed = s_)
+- Density-Based
+  - DBSCAN
   
-    results[[i]] <- run_classifier(
-      perceptron,
-      d$train_data,
-      d$train_labels,
-      d$test_data,
-      d$test_labels
-    )
-  }
-  
-  return(results)
-}
-```
-
-Once the data is prepared, it's ready to be used in the models. In this section, each model is given three random subsets of the cleaned dataset to classify as one of the class labels. The models are as follows:
-
-- K-Means Clustering
-- Gaussian Mixture Model clustering
-- Mean Shift Clustering
-- Hoeffding trees clustering
-- DBSCAN clustering
+- Ordering-Based
+  - OPTICS (Ordering Point to Identify the Clustering Structure)
 
 Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
 
-#### K-Means Clustering
+Before jumping to the models it is important to transform all the data to be the same type, in this case numeric.
 
 ```{r}
-penguins <- na.omit(df)
+penguins <- df
 penguins$bill_length_mm <- as.numeric(penguins$bill_length_mm)
 penguins$bill_depth_mm <- as.numeric(penguins$bill_depth_mm)
 penguins$flipper_length_mm <- as.numeric(penguins$flipper_length_mm)
 penguins$body_mass_g <- as.numeric(penguins$body_mass_g)
-penguins$year <- as.factor(penguins$year)
-penguins$sex <- as.factor(penguins$sex)
-features <- penguins[, c("bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
-scaled_features <- scale(features)
-k <- 3
-kmeans_result <- kmeans(scaled_features, centers = k)
-penguins$cluster <- kmeans_result$cluster
 
-ggplot(penguins, aes(x = bill_length_mm, y = flipper_length_mm, color = factor(cluster))) +
-  geom_point(size = 3) +
-  labs(title = "K-Means Clustering of Penguins", x = "Bill Length (mm)", y = "Flipper Length (mm)", color = "Cluster") +
-  theme_minimal()
+summary(penguins)
+str(penguins)
 ```
 
+Also is important to scale the features that will be used to make a good clustering.
 
+```{r}
+features <- penguins[, c("sex", "year", "bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g")]
+scaled_features <- scale(features)
+```
 
+#### Optimal number of clusters
+
+Once we have the scaled features we can make a little of pre-clustering to see the optimal number of clusters, in this case using the PAM method with the Manhattan distance metric to perform an analysis of the Within-Cluster Sum of Squares (WSS) for different values of k.
+
+```{r}
+fviz_nbclust(
+  x = penguins, FUNcluster = pam, method = "wss", k.max = 15,
+  diss = dist(penguins, method = "manhattan")
+)
+```
+
+In this case we can see that the optimal should be 4 because beyond 5, the trend starts to stabilize, and therefore, there won't be as significant groupings. So 4 is the number of clusters that we would use initially in each method.
+
+#### Linkages
+
+Now let's calculate the `Manhattan` and the `Euclidean` distance to make three different linkage methods.
+
+  - Complete Linkage: Measures the maximum distance between clusters before merging.
+  - Single Linkage: Measures the minimum distance between clusters before merging.
+  - Average Linkage: Measures the average distance between clusters before merging.
+
+```{r}
+matriz_distancias <- dist(x = penguins, method = "euclidean")
+
+hc_euclidea_completo <- hclust(d = matriz_distancias, method = "complete")
+hc_euclidea_single <- hclust(d = matriz_distancias, method = "single")
+hc_euclidea_average <- hclust(d = matriz_distancias, method = "average")
+
+grid.arrange(
+  plot(
+    x = hc_euclidea_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Complete Linkage"
+  ),
+  plot(
+    x = hc_euclidea_single, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Single Linkage"
+  ),
+  plot(
+    x = hc_euclidea_average, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Average Linkage"
+  ),
+  nrow = 2
+)
+```
+
+As it can be seen, there are 4 major clusters using the euclidean distance.
+
+```{r}
+matriz_distancias <- dist(x = penguins, method = "manhattan")
+
+hc_manhattan_completo <- hclust(d = matriz_distancias, method = "complete")
+hc_manhattan_single <- hclust(d = matriz_distancias, method = "single")
+hc_manhattan_average <- hclust(d = matriz_distancias, method = "average")
+
+grid.arrange(
+  plot(
+    x = hc_manhattan_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage complete"
+  ),
+  plot(
+    x = hc_manhattan_single, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage single"
+  ),
+  plot(
+    x = hc_manhattan_average, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage average"
+  ),
+  nrow = 2
+)
+```
+
+And also using the Manhattan distance it can be said that there are 4 major clusters.
+
+### Hierarchical
+
+#### AGNES Clustering
+
+The idea behind AGNES clustering is to start with each data point as a single cluster and iteratively merge the closest clusters until only one cluster remains
+
+```{r}
+agnes_result <- agnes(scaled_features)
+
+fviz_dend(agnes_result,
+  main = "AGNES Clustering Dendrogram",
+  show_labels = FALSE,
+  palette = "jama",
+  k = 4,
+  color_labels_by_k = TRUE,
+  ggtheme = theme_classic()
+)
+```
+
+Now that we tried with 4 clusters we can see that maybe with the AGNES method is not the optimal number of clusters, because of the single value that represent a whole cluster all by himself, so now we can try to "remove" that cluster decreasing the number of clusters that we want, we can try with 3 and 2 just to see the difference.
+
+```{r}
+grid.arrange(
+  fviz_dend(agnes_result,
+    main = "AGNES Clustering Dendrogram",
+    show_labels = FALSE,
+    palette = "jama",
+    k = 3,
+    color_labels_by_k = TRUE,
+    ggtheme = theme_classic()
+  ),
+  fviz_dend(agnes_result,
+    main = "AGNES Clustering Dendrogram",
+    show_labels = FALSE,
+    palette = "jama",
+    k = 2,
+    color_labels_by_k = TRUE,
+    ggtheme = theme_classic()
+  ),
+  nrow = 2
+)
+```
+
+As it can be seen using this method of clustering the "best" value would be 2, we can validate this hypothesis later on when we take a look to the final results.
+
+### Partitional
+
+##### K-Means Clustering
+
+This method divides the dataset into a set number of clusters, this algorithm aims to minimize the variance within each cluster.
+
+Now we can try to make 3 and 4 clusters to compare them.
+
+```{r}
+k1 <- 3
+kmeans_result <- kmeans(scaled_features, centers = k1, nstart = 2)
+penguins$cluster <- kmeans_result$cluster
+
+plot(penguins[, c(1:6)], col = kmeans_result$cluster)
+title("Pair Plot: Scatter Plots of Numeric Variables by Cluster")
+```
+
+As it can be seen with 3 clusters seems like a good option for this data but let's plot the results in another forms to see it properly.
+
+```{r}
+fviz_cluster(
+  object = kmeans_result, data = penguins, show.clust.cent = TRUE,
+  ellipse.type = "convex", star.plot = TRUE, repel = TRUE, geom = "point",
+) +
+  labs(title = "Resultados clustering K-means") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+This looks very promising but maybe with 4 clusters it would be better.
+
+```{r}
+hclust_result <- hclust(dist(scaled_features))
+
+dend_colored <- color_branches(hclust_result, k = k1)
+
+labels(dend_colored) <- NULL
+
+plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
+rect.hclust(hclust_result, k1, border = "black")
+```
+
+We get a dendrogram to see how the data is divided and the structure that it follows.
+
+```{r}
+k2 <- 4
+kmeans_result2 <- kmeans(scaled_features, centers = k2, nstart = 2)
+penguins$cluster <- kmeans_result2$cluster
+
+plot(penguins[, c(1:6)], col = kmeans_result2$cluster)
+title("Pair Plot: Scatter Plots of Numeric Variables by Cluster")
+```
+
+With 4 clusters seems better but let's plot the results in another forms to see it properly.
+
+```{r}
+fviz_cluster(
+  object = kmeans_result2, data = penguins, show.clust.cent = TRUE,
+  ellipse.type = "convex", star.plot = FALSE, repel = FALSE,
+  geom = "point"
+) +
+  labs(title = "Resultados clustering K-means") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+As we can see the data is perfectly divided in 4 clusters.
+
+```{r plot_fviz_cluster function}
+plot_fviz_cluster <- function(features, dt, cents) {
+  plot <- fviz_cluster(
+    object = kmeans(features, centers = cents),
+    data = dt,
+    show.clust.cent = TRUE,
+    ellipse.type = "convex",
+    star.plot = TRUE,
+    repel = TRUE,
+    geom = "point",
+  ) +
+    labs(title = paste("K-means ", cents)) +
+    theme_bw() +
+    theme(legend.position = "none")
+
+  return(plot)
+}
+```
+
+```{r self-similarity plots}
+grid.arrange(
+  plot_fviz_cluster(scaled_features, penguins, 5),
+  plot_fviz_cluster(scaled_features, penguins, 6),
+  ncol = 2
+)
+grid.arrange(
+  plot_fviz_cluster(scaled_features, penguins, 7),
+  plot_fviz_cluster(scaled_features, penguins, 8),
+  ncol = 2
+)
+```
+
+Here we have it for 5, 6, 7 and 8 clusters and we can see that some date could perfectly be of another cluster showing us that 4 is the optimal and best number of clusters for this data.
+
+```{r}
+hclust_result <- hclust(dist(scaled_features))
+
+dend_colored <- color_branches(hclust_result, k = k2)
+
+labels(dend_colored) <- NULL
+
+plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
+
+rect.hclust(hclust_result, k2, border = "black")
+```
+
+Now we can see a perfect representation of the 4 clusters in a dendrogram.
+
+#### Gaussian Mixture Model Clustering
+
+A Gaussian Mixture Model (GMM) is a statistical model that represents a mixture of several Gaussian distributions (also known as normal distributions). The model assumes that the data is generated by the combination of various Gaussian distributions, and each component of the mixture represents one of the clusters in the data. GMM is a probabilistic modeling technique and is commonly used for clustering tasks.
+
+```{r}
+gmm_result <- Mclust(scaled_features)
+plot(gmm_result, what = "classification", main = "GMM Clustering")
+```
+
+As can be observed in this case, there are three different clusters, compared to others that have four. Additionally, in some specific instances in this case, certain clusters can be joined to form one.
+
+#### PAM Clustering
+
+PAM (Partitioning Around Medoids) is a clustering algorithm that belongs to the category of partitioning methods. Similar to the k-means algorithm, the goal of PAM is to divide a dataset into groups (clusters) in such a way that elements within a cluster are more similar to each other than to elements in other clusters.
+
+The following plots show the PAM clustering with three and four clusters.
+
+```{r PAM Clustering k 3}
+pam_result <- pam(dist(scaled_features, method = "euclidean"), 3)
+clusplot(pam_result)
+```
+
+```{r PAM Clustering k 4}
+pam_result <- pam(dist(scaled_features, method = "euclidean"), 4)
+clusplot(pam_result)
+```
+
+As can be seeing in the plots the division of data is better with 4 clusters. It ca be seen clearly in the PAM Clustering k=3 that a cluster can be divided into two.
+
+### Density-Based
+
+#### DBSCAN Clustering
+
+DBSCAN (Density-Based Spatial Clustering of Applications with Noise) is a clustering algorithm that focuses on the density of points in a feature space to group data. Unlike partitioning methods such as k-means, DBSCAN does not require specifying the number of clusters beforehand and can discover clusters of arbitrary shapes and sizes. Additionally, DBSCAN has the capability to identify outliers or noise.
+
+```{r}
+dbscan_result <- dbscan(scaled_features,
+  eps = 1.5,
+  MinPts = 4
+)
+fviz_cluster(
+  object = dbscan_result, data = scaled_features, stand = FALSE,
+  geom = "point", ellipse = TRUE, show.clust.cent = TRUE,
+  pallete = "jco",
+  main = "DBSCAN Clustering"
+) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+This clustering algorithm clearly separates the data into four clusters. As explained in the DBSCAN description, this algorithm does not require specifying the number of clusters beforehand; it discovers the clusters on its own. Also, as can be seen in the plot, there are two outliers represented by the black dots.
+
+### Ordering-Based
+
+#### OPTICS Clustering
+
+OPTICS (Ordering Points To Identify the Clustering Structure) is a clustering algorithm used to identify cluster structures in a dataset without the need to specify the number of clusters beforehand. OPTICS belongs to the category of density-based clustering methods and is particularly useful for datasets where clusters have variable shapes and sizes.
+
+```{r}
+optics_result <- optics(scaled_features, minPts = 4)
+plot(optics_result, main = "OPTICS Clustering")
+```
+
+In this case, with this algorithm, the obtained clusters cannot be clearly identified since the valleys are quite diverse and widely scattered. Nevertheless, it can be observed that there are four peaks that stand out in comparison, indicating the presence of four data clusters.
+
+### Conclusion
+
+We can conclude that in this case, the optimal data grouping for the entire dataset is four clusters. This implies that, based on the results obtained with the employed clustering method (such as K-means, DBSCAN, OPTICS, among others), the dataset is organized more coherently into four distinct groups. Each cluster represents a collection of points sharing similarities in their characteristics, and the identification of these groups can be valuable for understanding the underlying structure in the data.
