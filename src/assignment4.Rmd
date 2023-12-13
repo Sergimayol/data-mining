@@ -12,6 +12,7 @@ The dataset includes measurements taken for penguins in Palmer Archipelago.
 ```{r setup, include=FALSE} 
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+set.seed(4563)
 ```
 
 ## Study Problem Statement
@@ -79,7 +80,6 @@ df <- subset(df, select = -X)
 And now let's clean the data. In this case the variable `sex` it's a chr data we change the NA for the median, when is a numeric we use the mean of that variable except for Year that we use the median because it does not make sense to have half a year in which the study was taken.
 
 ```{r}
-
 df <- df %>% mutate(bill_length_mm = ifelse(is.na(bill_length_mm), mean(bill_length_mm, na.rm = TRUE), bill_length_mm))
 df <- df %>% mutate(bill_depth_mm = ifelse(is.na(bill_depth_mm), mean(bill_depth_mm, na.rm = TRUE), bill_depth_mm))
 df <- df %>% mutate(flipper_length_mm = ifelse(is.na(flipper_length_mm), mean(flipper_length_mm, na.rm = TRUE), flipper_length_mm))
@@ -119,10 +119,6 @@ Once the data is prepared, it's ready to be used in the models. In this case we 
 
 Each run of the model will output the confusion matrix and the evaluation of each run. Later on, it will be studied and commented on in the `Results` section. Additionally, the results of each run will be displayed immediately after every model, as shown in the following sections for each model.
 
-```{r}
-set.seed(2828)
-```
-
 Before jumping to the models it is important to transform all the data to be the same type, in this case numeric.
 
 ```{r}
@@ -143,12 +139,26 @@ features <- penguins[, c("sex", "year", "bill_length_mm", "bill_depth_mm", "flip
 scaled_features <- scale(features)
 ```
 
+#### Optimal number of clusters
+
+Once we have the scaled features we can make a little of pre-clustering to see the optimal number of clusters, in this case using the PAM method with the Manhattan distance metric to perform an analysis of the Within-Cluster Sum of Squares (WSS) for different values of k.
+
 ```{r}
 fviz_nbclust(
   x = penguins, FUNcluster = pam, method = "wss", k.max = 15,
   diss = dist(penguins, method = "manhattan")
 )
 ```
+
+In this case we can see that the optimal should be 4 because beyond 5, the trend starts to stabilize, and therefore, there won't be as significant groupings. So 4 is the number of clusters that we would use initially in each method.
+
+#### Linkages
+
+Now let's calculate the `Manhattan` and the `Euclidean` distance to make three different linkage methods.
+
+  - Complete Linkage: Measures the maximum distance between clusters before merging.
+  - Single Linkage: Measures the minimum distance between clusters before merging.
+  - Average Linkage: Measures the average distance between clusters before merging.
 
 ```{r}
 matriz_distancias <- dist(x = penguins, method = "euclidean")
@@ -160,23 +170,53 @@ hc_euclidea_average <- hclust(d = matriz_distancias, method = "average")
 grid.arrange(
   plot(
     x = hc_euclidea_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
-    main = "Linkage complete"
+    main = "Complete Linkage"
   ),
   plot(
     x = hc_euclidea_single, cex = 0.6, xlab = "", ylab = "", sub = "",
-    main = "Linkage single"
+    main = "Single Linkage"
   ),
   plot(
     x = hc_euclidea_average, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Average Linkage"
+  ),
+  nrow = 2
+)
+```
+
+As it can be seen, there are 4 major clusters using the euclidean distance.
+
+```{r}
+matriz_distancias <- dist(x = penguins, method = "manhattan")
+
+hc_manhattan_completo <- hclust(d = matriz_distancias, method = "complete")
+hc_manhattan_single <- hclust(d = matriz_distancias, method = "single")
+hc_manhattan_average <- hclust(d = matriz_distancias, method = "average")
+
+grid.arrange(
+  plot(
+    x = hc_manhattan_completo, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage complete"
+  ),
+  plot(
+    x = hc_manhattan_single, cex = 0.6, xlab = "", ylab = "", sub = "",
+    main = "Linkage single"
+  ),
+  plot(
+    x = hc_manhattan_average, cex = 0.6, xlab = "", ylab = "", sub = "",
     main = "Linkage average"
   ),
   nrow = 2
 )
 ```
 
+And also using the Manhattan distance it can be said that there are 4 major clusters.
+
 ### Hierarchical
 
 #### AGNES Clustering
+
+The idea behind AGNES clustering is to start with each data point as a single cluster and iteratively merge the closest clusters until only one cluster remains
 
 ```{r}
 agnes_result <- agnes(scaled_features)
@@ -185,98 +225,117 @@ fviz_dend(agnes_result,
   main = "AGNES Clustering Dendrogram",
   show_labels = FALSE,
   palette = "jama",
-  k = 5,
+  k = 4,
   color_labels_by_k = TRUE,
   ggtheme = theme_classic()
 )
 ```
 
+Now that we tried with 4 clusters we can see that maybe with the AGNES method is not the optimal number of clusters, because of the single value that represent a whole cluster all by himself, so now we can try to "remove" that cluster decreasing the number of clusters that we want, we can try with 3 and 2 just to see the difference.
+
+```{r}
+grid.arrange(
+    fviz_dend(agnes_result,
+    main = "AGNES Clustering Dendrogram",
+    show_labels = FALSE,
+    palette = "jama",
+    k = 3,
+    color_labels_by_k = TRUE,
+    ggtheme = theme_classic()
+  ),
+    fviz_dend(agnes_result,
+    main = "AGNES Clustering Dendrogram",
+    show_labels = FALSE,
+    palette = "jama",
+    k = 2,
+    color_labels_by_k = TRUE,
+    ggtheme = theme_classic()
+  ),
+  nrow = 2
+)
+
+```
+
+As it can be seen using this method of clustering the "best" value would be 2, we can validate this hypothesis later on when we take a look to the final results.
+
 ### Partitional
 
 ##### K-Means Clustering
 
+This method divides the dataset into a set number of clusters, this algorithm aims to minimize the variance within each cluster.
+
+Now we can try to make 3 and 4 clusters to compare them.
+
 ```{r}
-k <- 3
-kmeans_result <- kmeans(scaled_features, centers = k)
+k1 <- 3
+kmeans_result <- kmeans(scaled_features, centers = k1, nstart = 2)
 penguins$cluster <- kmeans_result$cluster
 
 plot(penguins[, c(1:6)], col = kmeans_result$cluster)
 title("Pair Plot: Scatter Plots of Numeric Variables by Cluster")
 ```
 
+As it can be seen with 3 clusters seems like a good option for this data but let's plot the results in another forms to see it properly.
+
 ```{r}
 fviz_cluster(
   object = kmeans_result, data = penguins, show.clust.cent = TRUE,
-  ellipse.type = "euclid", star.plot = TRUE, repel = TRUE
+  ellipse.type = "convex", star.plot = TRUE, repel = TRUE, geom = "point",
 ) +
   labs(title = "Resultados clustering K-means") +
   theme_bw() +
   theme(legend.position = "none")
 ```
+
+This looks very promising but maybe with 4 clusters it would be better.
 
 ```{r}
 hclust_result <- hclust(dist(scaled_features))
 
-dend_colored <- color_branches(hclust_result, k = k)
+dend_colored <- color_branches(hclust_result, k = k1)
 
 labels(dend_colored) <- NULL
 
 plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
-rect.hclust(hclust_result, k, border = "black")
+rect.hclust(hclust_result, k1, border = "black")
 ```
 
-```{r}
-grid.arrange(
-  fviz_dend(
-    x = hclust_result,
-    k = k,
-    color_labels_by_k = TRUE,
-    cex = 0.8,
-    type = "phylogenic",
-    repel = TRUE,
-    xlab = "",
-    ylab = ""
-  ),
-  fviz_dend(
-    x = hclust_result,
-    k = k,
-    color_labels_by_k = TRUE,
-    cex = 0.5,
-    type = "circular",
-  ),
-  nrow = 1
-)
-```
+We get a dendrogram to see how the data is divided and the structure that it follows.
 
 ```{r}
-k <- 4
-kmeans_result <- kmeans(scaled_features, centers = k)
-penguins$cluster <- kmeans_result$cluster
+k2 <- 4
+kmeans_result2 <- kmeans(scaled_features, centers = k2, nstart = 2)
+penguins$cluster <- kmeans_result2$cluster
 
-plot(penguins[, c(1:6)], col = kmeans_result$cluster)
+plot(penguins[, c(1:6)], col = kmeans_result2$cluster)
 title("Pair Plot: Scatter Plots of Numeric Variables by Cluster")
 ```
 
+With 4 clusters seems better but let's plot the results in another forms to see it properly.
+
 ```{r}
 fviz_cluster(
-  object = kmeans_result, data = penguins, show.clust.cent = TRUE,
-  ellipse.type = "euclid", star.plot = TRUE, repel = TRUE
+  object = kmeans_result2, data = penguins, show.clust.cent = TRUE,
+  ellipse.type = "convex", star.plot = FALSE, repel = FALSE,
+  geom = "point"
 ) +
   labs(title = "Resultados clustering K-means") +
   theme_bw() +
   theme(legend.position = "none")
 ```
+
+As we can see the data is perfectly divided in 4 clusters.
 
 ```{r plot_fviz_cluster function}
 plot_fviz_cluster <- function(features, dt, cents) {
   plot <- fviz_cluster(
     object = kmeans(features, centers = cents),
     data = dt,
-    show.clust.cent = FALSE,
-    ellipse.type = "euclid", star.plot = TRUE, repel = TRUE,
-    show.dist = FALSE,
-    xlab = "",
-    ylab = ""
+    show.clust.cent = TRUE,
+    ellipse.type = "convex", 
+    star.plot = TRUE, 
+    repel = TRUE,
+    geom = "point",
   ) +
     labs(title = paste("K-means ", cents)) +
     theme_bw() +
@@ -299,41 +358,20 @@ grid.arrange(
 )
 ```
 
+Here we have it for 5, 6, 7 and 8 clusters and we can see that some date could perfectly be of another cluster showing us that 4 is the optimal and best number of clusters for this data.
+
 ```{r}
 hclust_result <- hclust(dist(scaled_features))
 
-dend_colored <- color_branches(hclust_result, k = k)
+dend_colored <- color_branches(hclust_result, k = k2)
 
 labels(dend_colored) <- NULL
 
 plot(dend_colored, cex = 0.6, main = "Hierarchical Clustering Dendrogram")
 
-rect.hclust(hclust_result, k, border = "black")
+rect.hclust(hclust_result, k2, border = "black")
 ```
-
-```{r}
-grid.arrange(
-  fviz_dend(
-    x = hclust_result,
-    k = k,
-    color_labels_by_k = TRUE,
-    cex = 0.8,
-    type = "phylogenic",
-    repel = TRUE,
-    xlab = "",
-    ylab = ""
-  ),
-  fviz_dend(
-    x = hclust_result,
-    k = k,
-    color_labels_by_k = TRUE,
-    cex = 0.5,
-    type = "circular",
-    show_labels = FALSE
-  ),
-  nrow = 1
-)
-```
+Now we can see a perfect representation of the 4 clusters in a dendrogram.
 
 #### Gaussian Mixture Model Clustering
 
