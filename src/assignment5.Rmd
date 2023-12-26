@@ -1,0 +1,125 @@
+---
+title: "Assignment 5 - Data mining for mushroom dataset"
+author: "Sergi Mayol and Toni Garri"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+
+```{r library_load}
+library(GGally)
+library(ggplot2)
+library(dplyr)
+library(arules)
+library(arulesViz)
+```
+
+```{r dataset_load}
+dataset <- read.csv("../datasets/mushrooms.csv")
+```
+
+```{r to_transaction}
+df <- as(dataset, "transactions")
+```
+
+```{r}
+inspect(df[1:5, ])
+```
+
+```{r summary}
+summary(df)
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+image(sample(df, 100))
+```
+
+```{r}
+rules <- apriori(df)
+rules
+```
+
+```{r}
+summary(rules)
+# inspect(rules)
+```
+
+```{r}
+inspect(rules[1:20])
+```
+
+```{r}
+rules_conf <- sort(rules, by = "confidence", decreasing = TRUE)
+inspect(rules_conf[1:20])
+```
+
+```{r subset rules}
+supp_val <- 0.4
+conf_val <- 0.6
+minlen_val <- 2
+
+rules_2 <- apriori(df, parameter = list(supp = supp_val, conf = conf_val, minlen = minlen_val))
+summary(rules_2)
+inspect(rules_2[1:6])
+
+rules_3 <- apriori(df, parameter = list(supp = supp_val, conf = conf_val, minlen = minlen_val), appearance = list(rhs = c("type=edible", "type=poisonous")))
+rules3_conf <- sort(rules_3, by = "lift", decreasing = TRUE)
+inspect(rules3_conf)
+```
+
+```{r}
+pruned_rules <- rules_3[!is.redundant(rules_3)]
+summary(pruned_rules)
+prun_rules3_conf <- sort(pruned_rules, by = "lift", decreasing = TRUE)
+inspect(prun_rules3_conf)
+```
+
+```{r}
+plot(rules_2)
+plot(rules_2, method = "two-key plot")
+plot(rules_3, method = "graph")
+plot(pruned_rules, method = "graph")
+plot(pruned_rules, method = "grouped")
+```
+
+# Eclat
+
+```{r}
+eclad_rules <- eclat(df, parameter = list(support = 0.6, tidLists = TRUE))
+summary(eclad_rules)
+
+
+# inspect(eclad_rules[1:44, ]) # Max -> 565
+rulesf <- ruleInduction(eclad_rules, confidence = 0.7)
+rulesf <- rulesf[!is.redundant(rulesf)]
+inspect(rulesf)
+```
+
+```{r eclat}
+eclad_rules <- eclat(df, parameter = list(support = 0.4, tidLists = TRUE))
+summary(eclad_rules)
+
+rulesf <- ruleInduction(eclad_rules, confidence = 0.7)
+rulesf <- rulesf[!is.redundant(rulesf)]
+inspect(rulesf)
+filtered_rules <- subset(rulesf, rhs %in% c("type=edible", "type=poisonous"))
+inspect(filtered_rules)
+```
+
+```{r}
+plot(rulesf)
+plot(rulesf, method = "two-key plot")
+plot(rulesf, method = "graph")
+plot(rulesf, method = "grouped")
+
+plot(filtered_rules)
+plot(filtered_rules, method = "two-key plot")
+plot(filtered_rules, method = "graph")
+plot(filtered_rules, method = "grouped")
+```

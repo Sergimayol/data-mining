@@ -1,0 +1,240 @@
+---
+title: "Association Rules I"
+author: "Margaret Miró"
+date: "21746 Data Mining 2022-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Association Rules
+
+Association mining is commonly used to make product recommendations by identifying products that are frequently bought together. It is one of the key techniques used by large retailers to uncover associations between items by identifying relationships between the items that people buy.  
+
+There is a great R package called "arules" from Michael Hahsler who has implemented the algorithm in R.
+```{r}
+library(arules)
+```
+
+A rule is a notation that represents which item/s is frequently bought with what item/s. It has an LHS and an RHS part and can be represented as: $A \rightarrow B$. This means, the item/s in $B$ were frequently purchased along with items of $A$.
+
+The "apriori()" function generates the most relevant set of rules from a given transaction data. It also shows the support, confidence and lift of those rules. These three measure can be used to decide the relative strength of the rules. So what do these terms mean?
+
+* "support" is how many transactions support the condition. 
+$$s(A \rightarrow B) = \frac{\sigma(A,B)}{|T|} = P(A \cup B)$$
+
+* "confidence" is how confident the condition is. 
+$$c(A \rightarrow B) = \frac{s(A \rightarrow B)}{s(A)} = \frac{P(A \cup B)}{P(A)}$$
+
+* "lift" is how often the condition actually happened compared to the estimated chance for that to happen (expected value). 
+$$lift(A \rightarrow B) = \frac{c(A \rightarrow B)}{s(B)} = \frac{P(A \cup B)}{P(A)\cdot P(B)}$$
+Lift is the factor by which, the co-occurrence of A and B exceeds the expected probability of A and B co-occurring, had they been independent. So, higher the lift, higher the chance of A and B occurring together.
+
+### Groceries Data Set
+Let's play with the Groceries data that comes with the "arules" package. The file Groceries is public data of buying records in a grocery store. Each row corresponds to one transaction. Load the data. 
+```{r}
+data(Groceries)
+```
+
+Groceries contains sales data from a local grocery store with 9835 transactions and 169 items (products sold).  The summary shows some basic statistics of the data set.  
+```{r}
+summary(Groceries)
+```
+
+The data set is rather sparse with a density just above 2.6%, “whole milk” is the
+most popular item and that the average transaction contains less than 5 items.
+
+#### Exploring and preparing the Groceries data
+Unlike with a dataframe, using "head(Groceries)" does not display the transaction items in the data. To view the transactions, use the "inspect()" function instead.
+```{r}
+inspect(Groceries[1:4, ]) # too many transactions, only look at the first 4
+```
+
+By looking at the first row, we can say that ‘citrus fruit’, ‘semi-finished bread’, ‘margarine’ and ‘ready soups’ were bought together in a same transaction.
+
+Since association mining deals with transactions, the data has to be converted to one of class transactions, made available in R through the "arules" package. This is a necessary step because the "apriori()" function only accepts transactions data of class transactions.
+```{r}
+class(Groceries)
+```
+
+If you have to read data from a file as a transactions data, use read.transactions(). For example, tdata <- read.transactions("transactions_data.txt", sep="\t").
+
+If you already have your transactions stored as a dataframe, you could convert it to class transactions as follows: tData <- as (myDataFrame, "transactions") 
+
+Transactions can also be visualized:
+```{r}
+image(Groceries[1:5]) # a visualization of the sparse matrix for the first five transactions
+image(sample(Groceries, 100)) # visualization of a random sample of 100 transactions
+```
+
+Different plots showing the frequency of the individual items can be created.
+```{r}
+itemFrequencyPlot(Groceries, support = 0.1) ## minimum support 0.1
+itemFrequencyPlot(Groceries, topN = 20, type = "absolute", main = "Top 20 Item Frequency") ## plot of top 20 most frequent items
+```
+
+Here are couple more utility functions that are good to know:
+```{r}
+size(head(Groceries)) # number of items in each observation
+LIST(head(Groceries, 3)) # convert 'transactions' to a list, note the LIST in CAPS
+```
+
+#### The most frequent items
+
+The "eclat()" function takes in a transactions object and gives the most frequent items in the data based on the support you provide. The "maxlen" parameter defines the maximum number of items in each itemset of frequent items.
+```{r}
+frequentItems <- eclat(Groceries, parameter = list(support = 0.05)) # calculates support for frequent items
+inspect(frequentItems)
+```
+
+Let's use smaller values for support to obtain a larger number of frequent itemsets.
+```{r}
+frequentItems2 <- eclat(Groceries, parameter = list(support = 0.01))
+inspect(frequentItems2)
+```
+
+Let's summarize all these frequent itemsets.
+```{r}
+summary(frequentItems2)
+```
+
+#### Mining the Rules (learning a model)
+
+Let's generate all rules using the Apriori algorithm:
+```{r}
+apriori(Groceries) ## for default values of the parameters
+```
+
+The default settings result in zero rules learned. The default behavior is to mine rules with minimum support of 0.1, minimum confidence of 0.8, and maximum of 10 items per itemset (maxlen). To learn more about the parameters type ?apriori.
+
+Going back to our problem. We need to set other support and confidence levels to learn rules. 
+
+**Note:** Apriori only creates rules with one item in the RHS (Consequent)! The default value for minlen is 1. This means that rules with only one item (i.e., an empty antecedent/LHS) like $\{ \} \rightarrow {beer}$ will be created. These rules mean that no matter what other items are involved, the item in the RHS will appear with the probability given by the rule's confidence (which equals the support). To avoid these rules set minlen=2.
+```{r}
+Grules <- apriori(Groceries, parameter = list(supp = 0.01, conf = 0.5, minlen = 2))
+```
+
+We have obtained 15 rules, it's a reasonable number to inspect. Let's look at the rules.
+```{r}
+inspect(Grules)
+```
+
+Let's list rules by confidence
+```{r}
+Grules_conf <- sort(Grules, by = "confidence", decreasing = TRUE) # 'high-confidence' rules.
+inspect(head(Grules_conf)) # show the support, lift and confidence for all rules
+```
+
+Let's list rules by lift
+```{r}
+Grules_lift <- sort(Grules, by = "lift", decreasing = TRUE) # 'high-lift' rules.
+inspect(head(Grules_lift)) # show the support, lift and confidence for all rules
+```
+
+#### Evaluating performance: summary of Groceries association rules
+
+Adjusting the maxlen, support and confidence arguments in the apriori function we control the number of rules generated. You will have to adjust this based on the sparcesness of your data.
+
+* To get "strong" rules, increase the value of "conf" parameter.
+
+* To get "longer" rules, increase "maxlen".
+
+Let's get some information on the rules.
+```{r}
+summary(Grules)
+```
+
+#### Improving performance
+
+We can also find subsets of rules containing any yogurt items:
+```{r}
+yogurtrules <- subset(Grules, items %in% "yogurt")
+inspect(yogurtrules)
+```
+
+Let's use other values for support and confidence and study the resulting rules.
+```{r}
+Grules2 <- apriori(Groceries, parameter = list(supp = 0.001, conf = 0.5))
+summary(Grules2)
+```
+
+Let's list rules by confidence
+```{r}
+Grules2_conf <- sort(Grules2, by = "confidence", decreasing = TRUE) # 'high-confidence' rules.
+inspect(head(Grules2_conf)) # show the support, lift and confidence for all rules
+```
+
+The rules with confidence of 1 imply that, whenever the LHS item was purchased, the RHS item was also purchased 100% of the time.
+
+Let's list rules by lift
+```{r}
+Grules2_lift <- sort(Grules2, by = "lift", decreasing = TRUE) # 'high-lift' rules.
+inspect(head(Grules2_lift)) # show the support, lift and confidence for all rules
+```
+
+A rule with a lift of 18 implies that, the items in LHS and RHS are 18 times more likely to be purchased together compared to the purchases when they are assumed to be unrelated.
+
+#### To find what factors influenced purchase of product X
+
+To better understand the patterns that led to the purchase of ‘whole milk’, let's find out what customers had purchased before buying ‘Whole Milk’. We are looking for rules with "whole milk" in the RHS.
+```{r}
+rules1 <- apriori(data = Groceries, parameter = list(supp = 0.001, conf = 0.5, minlen = 2), appearance = list(default = "lhs", rhs = "whole milk"), control = list(verbose = F)) # get rules that lead to buying 'whole milk'
+rules1_conf <- sort(rules1, by = "confidence", decreasing = TRUE) # 'high-confidence' rules.
+inspect(head(rules1_conf))
+```
+
+#### To find out what products were purchased after/along with product X
+
+The is a case to find out the Customers who bought ‘Whole Milk’ also bought .... In the equation, ‘whole milk’ is in LHS (left hand side).
+```{r}
+rules2 <- apriori(data = Groceries, parameter = list(supp = 0.001, conf = 0.15, minlen = 2), appearance = list(default = "rhs", lhs = "whole milk"), control = list(verbose = F)) # those who bought 'milk' also bought...
+rules2_conf <- sort(rules2, by = "confidence", decreasing = TRUE) # 'high-confidence' rules.
+inspect(head(rules2_conf))
+```
+
+One drawback with this is, you will get only 1 item on the RHS, irrespective of the support, confidence or minlen parameters.
+
+#### Rule Visualization
+Let's go back to Grules2. It  is  clear  that  going  through  all  the  5668  rules  manually  is  not  a  viable  option. We will introduce different visualization techniques implemented in "arulesViz". 
+```{r}
+library(arulesViz)
+```
+
+The default method for "plot()" for association rules in "arulesViz" is a scatter plot using support and confidence on the axes.  In addition a third measure (default: lift) is used as the color (gray level) of the points.  A color key is provided to the right of the plot.
+```{r}
+plot(Grules2)
+```
+
+We can see that rules with high lift have typically a relatively low support. The most interesting rules reside on the support/confidence border.
+
+The two-key  plot has support  and  confidence  for  the  x  and  y-axes  and  the  color  of  the points is used to indicate the number of items contained in the rule, the “order.” Two-key plots can be produced by:
+```{r}
+plot(Grules2, method = "two-key plot")
+```
+
+From the plot it is clear that order and support have a very strong inverse relationship, which is a known fact for association rules.
+
+Other graphs visualize association rules using vertices and edges where vertices annodated with item labels represent items, and itemsets or rules are represented as a second set of vertices.  Items are connected with itemsets/rules using arrows. For rules arrows pointing from items to rule vertices indicate LHS  items  and  an  arrow  from  a  rule  to  an  item indicates  the  RHS.  Interest  measures  are typically added to the plot by using color or size of the vertices representing the itemsets/rules.
+
+The matrix visualization with grouped antecedents for the set of 5668 rules mined earlier can be easily created by
+```{r}
+plot(Grules2, method = "grouped")
+```
+
+Graph-based visualization offers a very clear representation of rules but they tend to easily become cluttered and thus are only viable for very small sets of rules.  For the following plots we select the 10 rules with the highest lift.
+```{r}
+subrules <- head(Grules2, n = 10, by = "lift")
+```
+
+The following plot represents items and rules as vertices connecting them with directed edges.  This representation focuses on how the rules are composed of individual items and shows which rules share items.
+```{r}
+plot(subrules, method = "graph")
+```
+
+To visualize the grouped matrix we use a balloon plot with antecedent groups as columns and consequent's as rows. The color of the balloons represent the lift and the size of the balloon shows support. Furthermore, the columns and rows in the plot are reordered in such a way that the the most interesting group is placed in the top left corner. (Lift is decreasing from left to right.)
+```{r}
+plot(subrules, method = "grouped")
+```
+
