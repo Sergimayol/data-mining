@@ -1,0 +1,321 @@
+---
+title: "Assignment 5 - Data mining for mushroom dataset"
+author: "Sergi Mayol and Toni Garri"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Introduction
+
+The dataset contains 8124 descriptions of hypothetical samples corresponding to 23 species of gilled mushrooms in the Agaricus and Lepiota Family. 
+Each species is identified as definitely edible, definitely poisonous (or of unknown edibility and not recommended). 
+
+## Study problem statement
+
+The objective in this assignment is to mine the data and find association rules that can be used to identify the edibility of a mushroom.
+
+### Questions to answer
+
+- What are the characteristics of edible mushrooms? 
+- What are the characteristics of poisonous ones?
+- Are there any redundant rules? Can we remove them?
+
+## Libraries
+
+For this assignment, the following libraries are used:
+
+```{r library_load}
+library(GGally)
+library(ggplot2)
+library(dplyr)
+library(arules)
+library(arulesViz)
+library(gridExtra)
+```
+
+## Data 
+
+This assignment uses the data frame mushrooms dataset that can be found in the DATASET folder.
+```{r dataset_load}
+dataset <- read.csv("../datasets/mushrooms.csv")
+```
+
+## Data preparation
+
+In order to work with the “arules” library, the data has to be in transaction format. In this case we the data needs to be converted into a transaction class.
+
+```{r to_transaction}
+df <- as(dataset, "transactions")
+```
+
+Now we can check the structure of each transaction.
+
+```{r}
+inspect(df[1:2, ])
+```
+
+The summary is as follows.
+
+```{r summary}
+summary(df)
+```
+
+Let's make sure it's in the correct format.
+
+```{r}
+str(df)
+```
+
+In this plot we can see the distribution of items amongs the transactions.
+
+```{r}
+image(sample(df, 100))
+```
+
+## Apriori
+
+Apriori was one of the first algorithms developed for the discovery of association rules and continues to be one of the most widely used. It has two stages:
+
+- Identify all itemsets that occur with a frequency above a certain threshold (frequent itemsets).
+- Convert those frequent itemsets into association rules.
+
+
+### Testing the algorithm
+
+```{r}
+rules <- apriori(df)
+rules
+```
+
+As we can see, if we try to apply the algorithm without any other consideration it gives an astonishing 3.3M rules, so we need to try to reduce them.
+
+Before trying to get better results we can take a look at the summary of this rules:
+
+```{r}
+summary(rules)
+```
+
+### Getting results
+
+Here we can find a function named `run_apriori_with_loop` that we can use to try different configurations of the support values, the confidence values and the minumun lenght values.
+It returns a data frame that contains the number of rules taking in consideration the redundant ones and not, with every combination possible.
+
+```{r}
+run_apriori_with_loop <- function(df, supp_values, conf_values, minlen_values) {
+  result_df <- data.frame()
+
+  for (supp_val in supp_values) {
+    for (conf_val in conf_values) {
+      for (minlen_val in minlen_values) {
+        rules <- apriori(
+          df,
+          parameter = list(
+            supp = supp_val,
+            conf = conf_val,
+            minlen = minlen_val
+          ),
+          appearance = list(rhs = c("type=edible", "type=poisonous")),
+          control = list(verbose = FALSE)
+        )
+        red_rules <- rules
+        not_red_rules <- rules[!is.redundant(rules)]
+        rules_conf <- sort(not_red_rules, by = "lift", decreasing = TRUE)
+        result_df <- rbind(
+          result_df,
+          data.frame(
+            Support = supp_val,
+            Confidence = conf_val,
+            MinLength = minlen_val,
+            Redundant_Rules = length(red_rules),
+            Non_Redundant_Rules = length(rules_conf)
+          )
+        )
+      }
+    }
+  }
+
+  return(result_df)
+}
+
+supp_values <- c(0.3, 0.4, 0.5)
+conf_values <- c(0.6, 0.7, 0.8, 0.9)
+minlen_values <- c(1, 2, 3)
+
+result_rules <- run_apriori_with_loop(
+  df,
+  supp_values,
+  conf_values,
+  minlen_values
+)
+result_rules
+```
+
+As we can see in the above results there is a very high difference between having removed the redundant rules and not, 
+in this case we think that having 7 rules with 0.7 confidence is good enough to us, because having 10 seems a lot to
+have into consideration if a mushroom is poisonous or not, and 2 is too also too low.
+
+Let's take a closer look to this association rules given a support value of 0.4, a confidence values of 0.7 and a
+minimum lenght of 2.
+
+```{r subset rules}
+supp_val <- 0.4
+conf_val <- 0.7
+minlen_val <- 2
+
+rules_2 <- apriori(
+  df,
+  parameter = list(supp = supp_val, conf = conf_val, minlen = minlen_val)
+)
+summary(rules_2)
+inspect(rules_2[1:6])
+
+rules_3 <- apriori(
+  df,
+  parameter = list(supp = supp_val, conf = conf_val, minlen = minlen_val),
+  appearance = list(rhs = c("type=edible", "type=poisonous"))
+)
+rules3_conf <- sort(rules_3, by = "lift", decreasing = TRUE)
+inspect(rules3_conf)
+
+pruned_rules <- rules_3[!is.redundant(rules_3)]
+summary(pruned_rules)
+prun_rules3_conf <- sort(pruned_rules, by = "lift", decreasing = TRUE)
+inspect(prun_rules3_conf)
+```
+
+In the following plots, we can observe the results obtained, both redundant and non-redundant, presented in scatter plots, graphs, and clusters:
+
+```{r}
+grid.arrange(
+  plot(rules_2),
+  plot(rules_2, method = "two-key plot"),
+  ncol = 2
+)
+```
+
+The following plots represent items and rules as vertices connecting them with directed edges. This representation focuses on how the rules are composed of individual items and shows which rules share items.
+```{r}
+plot(rules_3, method = "graph")
+plot(pruned_rules, method = "graph")
+```
+
+To visualize the grouped matrix we use a balloon plot with antecedent groups as columns and consequent's as rows. The color of the balloons represent the lift and the size of the balloon shows support. Furthermore, 
+the columns and rows in the plot are reordered in such a way that the the most interesting group is placed in the top left corner. (Lift is decreasing from left to right.)
+
+```{r}
+plot(pruned_rules, method = "grouped")
+```
+
+## Eclat
+
+Eclat is a data mining algorithm used to extract sets of frequent items from transactional datasets. The name "Eclat" is derived from "Equivalence Class Clustering and bottom-up Lattice Traversal," reflecting its approach based on equivalence class clustering and bottom-up lattice traversal. In other words, it is an effective tool for discovering patterns of frequent itemsets in extensive transactional datasets.
+
+### Getting results
+```{r}
+run_rule_induction <- function(df, support_values, min_confidence_values) {
+  result_df <- data.frame()
+
+  for (min_support in support_values) {
+    for (min_confidence in min_confidence_values) {
+      eclad_rules <- eclat(df,
+        parameter = list(support = min_support, tidLists = TRUE),
+        control = list(verbose = FALSE)
+      )
+
+      rulesf <- ruleInduction(eclad_rules, confidence = min_confidence)
+      red_rules <- rulesf
+      rulesf <- rulesf[!is.redundant(rulesf)]
+
+      filtered_rules <- subset(
+        rulesf,
+        rhs %in% c("type=edible", "type=poisonous")
+      )
+
+      result_df <- rbind(
+        result_df,
+        data.frame(
+          Support = min_support,
+          Confidence = min_confidence,
+          Redundant_Rules = length(red_rules),
+          Non_Redundant_Rules = length(filtered_rules)
+        )
+      )
+    }
+  }
+
+  return(result_df)
+}
+```
+
+Using the function `run_rule_induction` we can obtain the results of the different possible cobination for the following support and confidence values:
+
+- Support: `0.4, 0.5, 0.6, 0.7, 0.8, 0.9`
+- Confidence: `0.5, 0.6, 0.7, 0.8, 0.9`
+
+```{r run_rule_induction}
+support_values <- c(0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+min_confidence <- c(0.5, 0.6, 0.7, 0.8, 0.9)
+
+results <- run_rule_induction(df, support_values, min_confidence)
+print(results)
+```
+
+Now, we will select the result for 7 rules using a support of 0.4 and confidence of 0.7. By running it, leads to the formation of a set of 565 itemsets. After eliminating redundant rules, we are left with 7 rules, as it can be seen the following plots:
+
+```{r eclat}
+eclad_rules <- eclat(df, parameter = list(support = 0.4, tidLists = TRUE))
+summary(eclad_rules)
+
+rulesf <- ruleInduction(eclad_rules, confidence = 0.7)
+rulesf <- rulesf[!is.redundant(rulesf)]
+filtered_rules <- subset(rulesf, rhs %in% c("type=edible", "type=poisonous"))
+inspect(filtered_rules)
+```
+
+In the following plots, we can observe the results obtained, both redundant and non-redundant, presented in scatter plots, graphs, and clusters:
+
+```{r}
+grid.arrange(
+  plot(rulesf),
+  plot(rulesf, method = "two-key plot"),
+  ncol = 2
+)
+plot(rulesf, method = "graph")
+plot(filtered_rules, method = "graph")
+plot(filtered_rules, method = "grouped")
+```
+
+## Conclusion
+
+To conclude this task, we can compare the two results obtained from the `Apriori` and `Eclat` algorithms, as shown below:
+
+```{r conclusion}
+invisible(grid.arrange(
+  plot(pruned_rules, method = "grouped") + ggtitle("Apriori"),
+  plot(filtered_rules, method = "grouped") + ggtitle("Eclat"),
+  ncol = 2
+))
+```
+
+As we can observe in both cases, we have achieved the same results with two different algorithms and a similar configuration.
+
+After the study we can conclude that the following association rules are the ones that help us to say if a mushroom is poisonous or not.
+
+- **Edible**:
+  - `{odor=none}`
+  - `{stalk_surface_below_ring=smooth}`
+  - `{stalk_surface_above_ring=smooth}`
+  - `{gill_size=broad}`
+  - `{gill_size=broad, stalk_surface_above_ring=smooth}`
+
+- **Poisonous**:
+  - `{bruises=no}`
+  - `{bruises=no, ring_number=one}`
+  - `{bruises=no, gill_attachment=free}`
+  - `{bruises=no, veil_color=white}`
+  - `{bruises=no, gill_attachment=free, ring_number=one}`
